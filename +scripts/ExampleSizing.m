@@ -34,7 +34,7 @@ ADP.Mf_TOC = 0.97;  % mass at teh Top of Climb (TOC)
 
 % -------------------------------- Sizing --------------------------------
 % Note - see the "size" function at the bottum of this script
-ADP = size(ADP);
+ADP = B777.Size(ADP);
 
 
 %% build the "Sized" geometry and plot it
@@ -71,11 +71,16 @@ mtoms = Spans*0;
 fuels = mtoms;
 
 % loop over spans and size aircraft for each span
+ADP0 = ADP; % store initial ADP to reset after each iteration (avoid baseline corruption)
+
 for i = 1:length(Spans)
-    ADP.Span = Spans(i);
-    ADP = size(ADP);
-    mtoms(i) = ADP.MTOM;
-    fuels(i) = ADP.Mf_Fuel*ADP.MTOM;
+    ADPi = ADP0; %make copy
+    ADPi.Span = Spans(i);
+
+    ADPi = B777.Size(ADPi);
+    
+    mtoms(i) = ADPi.MTOM;
+    fuels(i) = ADPi.Mf_Fuel*ADPi.MTOM;
 end
 
 f = figure(2);
