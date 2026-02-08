@@ -32,4 +32,3 @@ while delta>1
     out.DOC = BlockFuel*1;
     out.ATR = BlockFuel; 
 end
-end
