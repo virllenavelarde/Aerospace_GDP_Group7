@@ -8,6 +8,7 @@ tr =  -0.0083*SweepQtrChord + 0.4597; % taper ratio of outer portion of the wing
 
 b = obj.Span;
 S = (obj.MTOM*9.81)/obj.WingLoading;    %get area from W/S, and MTOM
+obj.WingArea = S; % store wing area in object for later use (used for S_w)
 
 R_f = obj.CabinRadius;        % radius of fuselage, input para in ADP
 L2 = obj.KinkPos-R_f;   % length from fuselage to kink

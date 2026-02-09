@@ -4,7 +4,7 @@
 % parameters
 ADP = B777.ADP();
 ADP.TLAR = cast.TLAR.B777F(); % sets top level aircraft requirements
-ADP.TLAR.M_c = 0.84;
+ADP.TLAR.M_c = 0.82;    % set cruise Mach number to 0.82 from Tlars (fixed 9/2/2026)
 
 % --------------------- set B777 specific parameters ---------------------
 ADP.KinkPos = 10;       % spanwise position of TE kink in wing planform
@@ -22,7 +22,7 @@ ADP.Span = 64.8;
 
 % -------------------------- class-I estimates ---------------------------
 % initial mission analysis to estimate MTOM
-ADP.MTOM = 3.35*ADP.TLAR.Payload; % VERY basic guess of MTOM from payload
+ADP.MTOM = 3.35*ADP.TLAR.Payload; % VERY basic guess of MTOM from payload (need further adjusments)
 
 % initial estimate of fuel mass ( % of MTOM)
 ADP.Mf_Fuel = 0.19; % maximum fuel mass

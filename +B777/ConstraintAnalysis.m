@@ -31,13 +31,6 @@ function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
     % ---- Call take-off constraint (returns T/W curve) ----
     TW_to = B777.geom.subconstraint.TOL(obj, WS);
 
-    % ---- Plot for sanity ----
-    figure; hold on; grid on;
-    plot(WS .* SI.lbft, TW_to, 'LineWidth', 2);  
-    xlabel('W/S [lb/ft^2]');
-    ylabel('T/W [-]');
-    title('Take-off Length Constraint (Corke)');
-
     % ---- preliminary design point ----
     WS_target = 7000;  % N/m^2 (example)
     TW_target = interp1(WS, TW_to, WS_target, 'linear');
@@ -55,6 +48,19 @@ function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
 
     obj.WingLoading = WingLoading;
     obj.ThrustToWeightRatio = ThrustToWeightRatio;
+
+    
+     % ---- Plot for sanity ----
+    persistent plottedOnce  %constant across function calls
+    plottedOnce = [];   % MATLAB default but idk if vsc does the same
+    if isempty(plottedOnce)
+        plottedOnce = true; %change plotting flag
+        figure(101); clf; hold on; grid on; %reuse 1 fig
+        plot(WS .* SI.lbft, TW_to, 'LineWidth', 2);
+        xlabel('W/S [lb/ft^2]'); ylabel('T/W [-]');
+        title('Take-off Length Constraint (Corke)');
+    end
+
 
 end
 
