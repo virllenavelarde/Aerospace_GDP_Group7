@@ -31,7 +31,8 @@ classdef ADP < handle
         V_VT = 0.07; % Vertical tail volume
 
         % --------------------- aero properties ----------------------
-        Cl_max = 1.5;   % airfoil amx Cl for wing
+        Cl_max = 1.5;   % airfoil max Cl for wing
+        CL_max = 2.5;   % max CL (clean) for wing (estimated rn for the sake of code working) %%%%%%%require urgent changes depending on model
         
         Delta_Cl_ld = 1; % Extra CL during landing
         Delta_Cl_to = 0.8; % Extra CL at take-off
