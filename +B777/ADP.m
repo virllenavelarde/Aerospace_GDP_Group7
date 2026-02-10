@@ -80,7 +80,7 @@ classdef ADP < handle
         x_ac % x location of mean geometeric chord
         c_ach % mean geometric chord of HTP
         c_acv % mean geometric chord of VTP
-    end7.3
+    end
 
     % fuselage properties
     properties
