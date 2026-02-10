@@ -80,13 +80,13 @@ classdef ADP < handle
         x_ac % x location of mean geometeric chord
         c_ach % mean geometric chord of HTP
         c_acv % mean geometric chord of VTP
-    end
+    end7.3
 
     % fuselage properties
     properties
-        CockpitLength = 6;
-        CabinRadius = 3.1;
-        CabinLength = 63.7 - 4 - 3.1*2*1.48;
+        CockpitLength = 7.3;
+        CabinRadius = 2.8;
+        CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
     end
 
     methods
