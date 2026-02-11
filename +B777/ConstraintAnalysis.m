@@ -30,6 +30,11 @@ function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
 
     % ---- Call take-off constraint (returns T/W curve) ----
     TW_to = B777.geom.subconstraint.TOL(obj, WS);
+    TW_roc = B777.geom.subconstraint.ROC(obj, WS);
+    TW_tocg = B777.geom.subconstraint.TOCG(obj, WS);
+
+    %envelope
+    TW_env = max([TW_to; TW_roc; TW_tocg], [], 1); %take max across constraints for each W/S
 
     % ---- preliminary design point ----
     WS_target = 7000;  % N/m^2 (example)
@@ -37,9 +42,9 @@ function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
 
     % If TW_target is NaN (outside feasible region), fall back to first finite point
     if ~isfinite(TW_target)
-        idx = find(isfinite(TW_to), 1, 'first');
+        idx = find(isfinite(TW_env), 1, 'first');
         WS_target = WS(idx);
-        TW_target = TW_to(idx);
+        TW_target = TW_env(idx);
     end
 
     % ---- Write results back ----
@@ -49,18 +54,28 @@ function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
     obj.WingLoading = WingLoading;
     obj.ThrustToWeightRatio = ThrustToWeightRatio;
 
-    
+
      % ---- Plot for sanity ----
     persistent plottedOnce  %constant across function calls
-    plottedOnce = [];   % MATLAB default but idk if vsc does the same
     if isempty(plottedOnce)
         plottedOnce = true; %change plotting flag
         figure(101); clf; hold on; grid on; %reuse 1 fig
-        plot(WS .* SI.lbft, TW_to, 'LineWidth', 2);
+
+        plot(WS .* SI.lbft, TW_to, ...
+        'LineWidth', 2, 'DisplayName', 'Take-off Field Length');
+        plot(WS .* SI.lbft, TW_roc, ...
+        'LineWidth', 2, 'DisplayName', 'Rate of Climb');
+        plot(WS .* SI.lbft, TW_tocg, ...
+        'LineWidth', 2, 'DisplayName', 'Take-off Climb Gradient');
+        plot(WS .* SI.lbft, TW_env, ...
+        'LineWidth', 2, 'DisplayName', 'Constraint Envelope', 'Color', 'k', 'LineStyle', '--');
+        plot(WingLoading * SI.lbft, ThrustToWeightRatio, ...
+            'ko', 'MarkerFaceColor', 'k', 'DisplayName', 'Design point');
+
         xlabel('W/S [lb/ft^2]'); ylabel('T/W [-]');
-        title('Take-off Length Constraint (Corke)');
+        ylabel('T/W [-]');
+        title('Constraint Digram');
+        legend('show', 'location', 'best');
     end
-
-
 end
 
