@@ -24,8 +24,8 @@ classdef TurboProp
                 PSFC_TO
                 PSFC_cruise
                 eta_p0
-                alt_cruise = 25e3 ./ SI.ft
-                M_cruise = 0.45
+                alt_cruise = 30e3 ./ SI.ft
+                M_cruise = 0.68
             end
             
             obj.Power_SL = Power_SL;
@@ -110,14 +110,14 @@ classdef TurboProp
             end
     
             Power_SL  = 8.2e6;   % W, ~11,000 shp
-            Mass      = 1950;    % kg (approx)
+            Mass      = 1938;    % kg (approx)
             Diameter  = 5.3;     % m, prop diameter
     
             f = 0.453592 / (745.7 * 3600); % lb/shp/hr -> kg/W/s
-            PSFC_TO     = 0.45 * f;      % Published value for modern turboprops
-            PSFC_cruise = 0.33 * f;      % Published value for modern turboprops
+            PSFC_TO     = 0.44 * f;      % Published value for modern turboprops
+            PSFC_cruise = 0.32 * f;      % Published value for modern turboprops
     
-            eta_p0 = 0.87;
+            eta_p0 = 0.88;
     
             obj = cast.eng.TurboProp(Power_SL, Mass, Diameter, ...
                                      PSFC_TO, PSFC_cruise, eta_p0, ...
