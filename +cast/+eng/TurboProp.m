@@ -24,8 +24,8 @@ classdef TurboProp
                 PSFC_TO
                 PSFC_cruise
                 eta_p0
-                alt_cruise = 30e3 ./ SI.ft
-                M_cruise = 0.68
+                alt_cruise = 35e3 ./ SI.ft
+                M_cruise = 0.85
             end
             
             obj.Power_SL = Power_SL;
@@ -73,7 +73,7 @@ classdef TurboProp
             % This is modeled as a parabolic degradation
             %
             % The degradation coefficient is chosen so that:
-            % - At design point (M~0.68), efficiency is still reasonable
+            % - At design point (M~0.85), efficiency is still reasonable
             % - Beyond M~0.75, efficiency drops sharply
             % - Crossover with turbofan happens around M~0.65-0.75
             
@@ -105,8 +105,8 @@ classdef TurboProp
     methods(Static)
         function obj = TP400_D6(alt_cruise, M_cruise)
             arguments
-                alt_cruise = 30e3 ./ SI.ft
-                M_cruise   = 0.68
+                alt_cruise = 35e3 ./ SI.ft
+                M_cruise   = 0.85
             end
     
             Power_SL  = 8.2e6;   % W, ~11,000 shp
