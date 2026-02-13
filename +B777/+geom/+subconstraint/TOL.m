@@ -14,7 +14,7 @@ function [TW_TO] = TOL(adp,WS_TO)
 
     % airport atmos (assume SL, ISA+15C)
     hAirport = 0;     % m       %maximum allowable limits for airports*
-    delta_T = 15;     %temp offset from ISA in K or C
+    delta_T = adp.TLAR.ISA_deltaT_TO;     %temp offset from ISA in K or C
     [~,~,~,~,~,~,sigma] = cast.atmos(hAirport, delta_T);    %want density ratio from height and isa offset, [rho,a,T,P,nu,z,sigma] = atmos(h,tOffset)
 
     %get CL_max_TO from max lift clean + high lift TO
