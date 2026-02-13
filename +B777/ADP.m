@@ -24,7 +24,7 @@ classdef ADP < handle
         ThrustToWeightRatio  % 
         WingLoading          % 
     end
-    % Aerodynamic
+    % Aerodynamic ---> NEED TO WAIT FOR CHORD LENGTH TO VERIFY REYNOLDS NUMBER*****
     properties
         % ------------------------- geometry -------------------------
         V_HT = 0.9; % Horizontal Tail Volume

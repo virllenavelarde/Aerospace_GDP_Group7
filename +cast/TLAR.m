@@ -109,16 +109,18 @@ classdef TLAR
 
             %take off **** NOT FIXED YET (NEED TO DO)
             obj.H_to_screen = 35./SI.ft;
-            obj.TOCG_AEO_gearUp   = 0.03;   % 3% at V_CL
-            obj.TOCG_OEI_gearDown = 0.005;  % 0.5% at V_CL
-            obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
             obj.ISA_deltaT_TO = 15;         % K (ISA+15)
+
+            obj.TOCG_AEO_gearUp   = 0.03;   % placeholder
+            obj.TOCG_OEI_gearDown = 0.005;  % placeholder
+
+            obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
 
             %roc **** NOT FIXED YET (NEED TO DO) --> NEED TO CHECK TTC
             obj.TTC_alt1 = 1500./SI.ft;
             obj.TTC_alt2 = max(obj.Alt_cruise, 20e3./SI.ft);
             obj.TTC_time = 30./SI.min;
-            obj.ROC_min_at_cruise = (300./SI.ft).*SI.min; %ft/min
+            obj.ROC_min_at_cruise = (300./SI.ft).*SI.min; %m/s (from ft/min)
 
             obj.Alt_speed_restriction = 10e3./SI.ft;
             obj.Vmax_below_10k = 250./SI.knt;
