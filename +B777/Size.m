@@ -4,8 +4,10 @@ function [ADP,out] = size(ADP)
 delta = inf;
 while delta>1
     % constraint Analysis
-    B777.ConstraintAnalysis(ADP);
-    
+    [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP);   %fixed to retunr the values instead of just updating
+    ADP.WingArea = ADP.MTOM*9.81/ADP.WingLoading; % update wing area based on new W/S and MTOM (this is used for geometry build)
+    ADP.Thrust = ADP.ThrustToWeightRatio*ADP.MTOM*9.81; % update thrust based on new T/W and MTOM (this is used for geometry build)
+
     % build geometry
     [~,B7Mass] = B777.BuildGeometry(ADP);
     
