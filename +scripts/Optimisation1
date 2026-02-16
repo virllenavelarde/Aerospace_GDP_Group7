@@ -44,11 +44,12 @@ disp(x_opt)
 disp(DOC_opt)
 
 
-% Aircraft sizing function
+
+% Aircraft sizing function -- INNER LOOP: Aircraft design and analysis - Convergence of MTOM
 
 % Constraint analysis
 % Geometry build
 % Aero model
 % Mision analysis
 
-% DOC model
+% DOC model - OUTER LOOP: Economic analysis 
