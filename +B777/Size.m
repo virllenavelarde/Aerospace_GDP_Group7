@@ -9,8 +9,11 @@ while delta>1
     ADP.Thrust = ADP.ThrustToWeightRatio*ADP.MTOM*9.81; % update thrust based on new T/W and MTOM (this is used for geometry build)
 
     % build geometry
+if isa(ADP, 'B777.ADP_BW')
+    [~,B7Mass] = B777.BuildGeometry_BW(ADP);
+else
     [~,B7Mass] = B777.BuildGeometry(ADP);
-    
+end
     % update Aero
     B777.UpdateAero(ADP);
     
