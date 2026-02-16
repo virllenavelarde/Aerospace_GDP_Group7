@@ -1,8 +1,8 @@
-function fuel_burn_analysis()
+function total_fuel_burn = fuel_burn_analysis(ac.payload, mission.M)
     % basic profile
     ac.MTOW = 319000;           % kg
     ac.OEW = 129000;            % kg
-    ac.payload = 92000;         % kg
+    % ac.payload = 92000;         % kg
     ac.S = 443;                 % m^2
     ac.AR = 9.5;               
     ac.e = 0.85;                
@@ -18,7 +18,7 @@ function fuel_burn_analysis()
     % mission profile
     mission.range_nm = 4700;    % nm
     mission.alt_cruise = 35000; % ft
-    mission.M = 0.85;           
+    % mission.M = 0.85;           
     
     % climate profile
     g = 9.81;
