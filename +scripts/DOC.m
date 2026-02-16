@@ -7,7 +7,7 @@ ICAO_taxi_configuration = 'D'; % ICAO taxi configuration
 no_days_landing = 50; % number of days an aircraft is parked at the airport per year
 fuel_kerosene_percentage = 0.95; % percentage of fuel that is kerosene
 fuel_SAF_percentage = 0.05; % percentage of fuel that is SAF
-fuel_consumption_per_flight = 5000; % liters per flight
+fuel_consumption_per_hour = 5; % liters per hour of flight
 total_flight_hours = 2000; % total flight hours per year
 fleet_size = 10; % number of aircraft in the fleet
 no_flights = 50; % number of flights per year per aircraft
@@ -38,7 +38,7 @@ total_parking_fees = parking_fee_per_day * no_days_landing * fleet_size; % $ per
 fuel_price_kerosene = 1.00; % $ per liter
 fuel_price_SAF = 2.00; % $ per liter
 total_fuel_price_per_litre = fuel_price_kerosene * fuel_kerosene_percentage + fuel_price_SAF * fuel_SAF_percentage; % $ per liter
-total_fuel_cost = total_fuel_price_per_litre * fuel_consumption_per_flight * fleet_size * no_flights; % $ per year
+total_fuel_cost = total_fuel_price_per_litre * fuel_consumption_per_hour * fleet_size * total_flight_hours; % $ per year
 
 % Maintenance costs
 V_hull = 44800 * MTOM ^ 0.65; % $ hull value
@@ -50,6 +50,6 @@ total_maintenance_cost = maintenance_fixed_cost + maintenance_variable_cost*tota
 total_insurance_cost = 0.005 * V_hull; % $ insurance cost per year
 
 total_DOC = total_crew_cost + total_landing_fees + total_parking_fees + total_fuel_cost + total_maintenance_cost + total_insurance_cost; % $ per year
-disp(['Total Direct Operating Cost (DOC) per year: $', num2str(total_DOC)]);
+disp(['Total Direct Operating Cost (DOC) per year: $', num2str(total_DOC), ' = $', num2str(total_DOC/1000000), ' millions']);
 
 % end

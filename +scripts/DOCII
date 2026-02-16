@@ -1,0 +1,102 @@
+%% ECONOMIC EVALUATION
+% function DOC(MTOM, no_landings, ICAO_taxi_configuration, no_days_landing, fuel_kerosene_percentage, fuel_SAF_percentage, fuel_consumption_per_flight, total_flight_hours)
+% Inputs from other disciplines
+MTOM = 270; % tonnes
+no_landings = 50; % number of landings per year per aircraft
+ICAO_taxi_configuration = 'D'; % ICAO taxi configuration
+no_days_landing = 50; % number of days an aircraft is parked at the airport per year
+fuel_kerosene_percentage = 0.95; % percentage of fuel that is kerosene
+fuel_SAF_percentage = 0.05; % percentage of fuel that is SAF
+fuel_consumption_per_flight = 5000; % liters per flight
+total_flight_hours = 2000; % total flight hours per year per aircraft
+fleet_size = 10; % number of aircraft in the fleet
+no_flights = 50; % number of flights per year per aircraft
+M_e = 100000; % kg, empty mass of the aircraft
+V_max = 400; % km/h, maximum velocity 
+N = fleet_size; % number of aircraft in 5 years production
+T_max = 115; % kN; maximum thrust
+M_max = 0.8; % -, maximum Mach number
+T_3 = 1000; % K, turbine inlet temperature
+N_ft = 2; % assumption, number of flight test aircraft
+
+% CASH OPERATIONG COSTS
+% Crew cost
+crew_cost_per_year = 150000; % $
+crew_members = 4; % number of crew members
+crew_cost_per_aircraft = crew_cost_per_year * crew_members; % $ per year
+total_crew_cost = crew_cost_per_aircraft * fleet_size; % $ per year
+
+% Landing fees
+landing_fee_per_tonne = 25; % $ per tonne
+landing_fee_per_aircraft = landing_fee_per_tonne * MTOM; % $ per landing
+total_landing_fees = landing_fee_per_aircraft * no_landings * fleet_size; % $ per year
+
+% Parking fees - fees based on the taxi configuration
+if ICAO_taxi_configuration == 'C'
+    parking_fee_per_day = 1000; % $ per day for configuration C
+elseif ICAO_taxi_configuration == 'D'
+    parking_fee_per_day = 2000; % $ per day for configuration D
+elseif ICAO_taxi_configuration == 'E'
+    parking_fee_per_day = 4000; % $ per day for configuration D
+elseif ICAO_taxi_configuration == 'F'
+    parking_fee_per_day = 6000; % $ per day for configuration D
+end
+total_parking_fees = parking_fee_per_day * no_days_landing * fleet_size; % $ per year
+
+% Fuel costs
+fuel_price_kerosene = 1.00; % $ per liter
+fuel_price_SAF = 2.00; % $ per liter
+total_fuel_price_per_litre = fuel_price_kerosene * fuel_kerosene_percentage + fuel_price_SAF * fuel_SAF_percentage; % $ per liter
+total_fuel_cost = total_fuel_price_per_litre * fuel_consumption_per_flight * fleet_size * no_flights; % $ per year
+
+% Maintenance costs
+V_hull = 44800 * MTOM ^ 0.65; % $ hull value
+maintenance_fixed_cost = 0.03 * V_hull; % $ fixed maintenance cost per year
+maintenance_variable_cost = 5e-06 * V_hull; % $/FH variable maintenance cost per
+total_maintenance_cost = maintenance_fixed_cost + maintenance_variable_cost*total_flight_hours*fleet_size; % $ per year
+
+total_COC = total_crew_cost + total_maintenance_cost + total_fuel_cost + total_parking_fees + total_landing_fees;
+
+
+% FINANCIAL COSTS
+% Initial cost estimate
+H_E = 5.18 * M_e^0.777 * V_max^0.894 * N^0.163; % hours, engineering
+H_T = 7.22 * M_e^0.777 * V_max^0.696 * N^0.263; % hours, tooling
+H_M = 10.5 * M_e^0.82 * V_max^0.484 * N^0.641; % hours, manufacturing
+H_Q = 0.076 * H_M; % hours, quality
+
+R_E = 115; % $/hour, engineering costs
+R_T = 118; % $/hour, tooling costs
+R_Q = 108; % $/hour, quality control costs
+R_M = 98; % $/hour, manufacturing costs
+
+eta_M = 1;  % aluminium: 1.0
+            % grapite-epoxy: 1.1 - 1.8
+            % fibreglass: 1.1 - 1.2
+            % steel: 1.5 - 2.0
+            % titanium: 1.1 - 1.8
+total_labour_costs = (H_e*R_E + H_T*R_T + H_M*R_M + H_Q*R_Q) * eta_M; % $, total labour costs
+
+% Extra costs
+C_D = 67.4*M_e^0.63*V_max^1.3; % $, development costs
+C_F = 1947*M_e^0.325*V_max^0.822+N_ft^1.21; % $, flight test costs
+C_m = 31.2*M_e^0.921*V_max^0.621*N^0.799; % $, material costs
+C_E = 3112 * (9.66*T_max + 243.25*M_max+1.74*T_3-2228); % $, engine costs
+
+eta_cpi = 1.43; % Scale for inflation: 143% since 2012
+
+total_initial_costs = (C_E+C_m+C_F+C_D+total_labour_costs)*eta_cpi; % $, total initial inversion
+
+% Depreciation costs
+depreciation_costs = total_initial_costs/(14*fleet_size*total_flight_hours); % $, depreciation costs
+% Interest costs
+interest_cost = 0.05 * total_initial_costs; % $, payment of aircraft financing
+% Insurance costs
+insurance_cost = 0.006 * V_hull; % $ insurance cost per year
+
+total_FC = depreciation_costs+interest_cost+insurance_cost; % $, total financial costs
+
+total_DOC = total_COC + total_FC; % $ per year
+disp(['Total Direct Operating Cost (DOC) per year: $', num2str(total_DOC), ' = $', num2str(total_DOC/1000000), ' millions']);
+
+% end
