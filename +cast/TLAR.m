@@ -43,9 +43,17 @@ classdef TLAR
 
     % alternate airport diversion properties
     properties
-        Alt_alternate = 22e3./SI.ft;
-        Range_alternate = 200./SI.Nmile;
-        Loiter = 30./SI.min; % 30 minutes in seconds
+        Alt_alternate = 1500./SI.ft; %***** fixed
+        Range_alternate = 350./SI.km; % m (from km) ***** fixed
+        Loiter = 30./SI.min; % 30 minutes in seconds *** fixed
+    end
+
+    properties  %structural
+        Vc % structural cruise speed
+        Vd % dive speed
+        Mc_margin
+        Md_margin
+        BuffetMargin_mins
     end
 
     methods(Static)
@@ -80,6 +88,54 @@ classdef TLAR
             obj.Alt_speed_restriction = 10e3./SI.ft;
             obj.Vmax_below_10k = 250./SI.knt;
             obj.ISA_deltaT_climb = 0;       % K (ISA)
+        end
+    end
+
+    methods(Static)
+        function obj = TubeWing    %table 1 Concept down selection
+            obj = cast.TLAR();
+            obj.Range = 8000./SI.km; % m (from km) ****** fixed
+            obj.GroundRun = 3000; %m *****fixed
+            obj.GroundRunLanding = 1500; %m
+            obj.M_c = 0.85;         %makes most sense as a first guess ****** fixed, nominal
+            obj.Alt_max = 12.5./SI.km; %m (12.5km) ****** fixed
+            obj.Alt_cruise = 11.5./SI.km; %m (11.5km) ****** fixed
+            obj.Crew = 4; %****** fixed
+            obj.Payload = 100./SI.Tonne; % kg (from tonnes) ***** fixed
+            obj.CrewMass = (80+10)*obj.Crew;
+            obj.V_app = 145./SI.knt;    %******fixed 11/2 to match TLAR
+            obj.V_ld = 140./SI.knt;   %******fixed doesnt reach approach
+            obj.V_climb = 250./SI.knt;
+
+            %take off **** NOT FIXED YET (NEED TO DO)
+            obj.H_to_screen = 35./SI.ft;
+            obj.ISA_deltaT_TO = 15;         % K (ISA+15)
+
+            obj.TOCG_AEO_gearUp   = 0.03;   % placeholder
+            obj.TOCG_OEI_gearDown = 0.005;  % placeholder
+
+            obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
+
+            %roc **** NOT FIXED YET (NEED TO DO) --> NEED TO CHECK TTC
+            obj.TTC_alt1 = 1500./SI.ft;
+            obj.TTC_alt2 = max(obj.Alt_cruise, 20e3./SI.ft);
+            obj.TTC_time = 30./SI.min;
+            obj.ROC_min_at_cruise = (300./SI.ft).*SI.min; %m/s (from ft/min)
+
+            obj.Alt_speed_restriction = 10e3./SI.ft;
+            obj.Vmax_below_10k = 250./SI.knt;
+            obj.ISA_deltaT_climb = 0;       % K (ISA)
+
+            obj.Vc = 350./SI.knt; % structural cruise speed
+            obj.Vd = (350+35)./SI.knt; % dive speed
+            obj.Mc_margin = 0.04; % margin to max cruise Mach number
+            obj.Md_margin = 0.07; % margin to max dive Mach number
+
+            obj.Range_alternate = 350./SI.km;   % R4.2.2
+            obj.Alt_alternate   = 1500./SI.ft;  % R4.6.2 loiter altitude
+            obj.Loiter          = 30./SI.min;   % R4.6.2 loiter time
+
+            obj.BuffetMargin_min = 0.3;
         end
     end
 end
