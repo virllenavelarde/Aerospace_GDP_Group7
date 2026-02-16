@@ -1,0 +1,54 @@
+% Objective: DOC
+
+% Hyperparameters: fleet size, cruise Mach
+% Design variable bounds
+fleet_min = 1; % minimum fleet size
+fleet_max = 20; % maximum fleet size
+Mach_min = 0.5; % minimum cruise Mach number    
+Mach_max = 1.0; % maximum cruise Mach number
+x0 = [10, 0.8]; % initial guess for optimization [fleet size, cruise Mach number]
+
+% Objective function
+function DOC_season = objective_function(x)
+    fleet_size = ceil(x(1));
+    Mach_number = x(2);
+    payload_mass = 736/fleet_size; % kg, total payload mass divided by fleet size
+    fuel_mass = fuel_burn_analysis(payload_mass, Mach_number); % calculate fuel burn based on Mach number
+    operational_mass = 100000; % kg, estimated operational mass
+    MTOM = payload_mass + fuel_mass + operational_mass; % Maximum Takeoff Mass
+    fuel_kerosene_percentage = 0;
+    fuel_SAF_percentage = 1;
+    fuel_consumption_per_hour = fuel_mass / 2000; % liters per hour of flight, assuming 2000 flight hours per year
+    DOC_value = DOC(MTOM, fuel_kerosene_percentage, fuel_SAF_percentage, fuel_consumption_per_hour);
+    objective_function = DOC_value; % minimize DOC
+end
+
+% Constraint function
+function [c, ceq] = constraint_function(x)
+    fleet_size = ceil(x(1));
+    Mach_number = x(2);
+    % Example constraint: Mach number must be less than or equal to M_max
+    c1 = Mach_number - M_max; % inequality constraint (Mach_number <= M_max)
+    c2 = fleet_min - fleet_size; % inequality constraint (fleet_size >= fleet_min)
+    c = [c1; c2]; % combine inequality constraints
+    ceq = []; % no equality constraints
+end
+
+% Optimization options
+options = optimoptions('fmincon', 'Display', 'iter', 'Algorithm', 'sqp');
+% Run optimization
+[x_opt, DOC_opt] = fmincon(@objective_function, x0, [], [], [], [], [fleet_min, Mach_min], [fleet_max, Mach_max], @constraint_function, options);
+
+disp('Optimal Solution:')
+disp(x_opt)
+disp(DOC_opt)
+
+
+% Aircraft sizing function
+
+% Constraint analysis
+% Geometry build
+% Aero model
+% Mision analysis
+
+% DOC model
