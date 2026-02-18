@@ -105,7 +105,7 @@ classdef TLAR
             obj.Alt_max = 12.5./SI.km; %m (12.5km) ****** fixed
             obj.Alt_cruise = 11.5./SI.km; %m (11.5km) ****** fixed
             obj.Crew = 4; %****** fixed
-            obj.Payload = 100./SI.Tonne; % kg (from tonnes) ***** fixed
+            obj.Payload = 123./SI.Tonne; % kg (from tonnes) ***** fixed, per aircraft (6 aircraft total payload = 738 tonnes)
             obj.CrewMass = (80+10)*obj.Crew;
             obj.V_app = 145./SI.knt;    %******fixed 11/2 to match TLAR
             obj.V_ld = 140./SI.knt;   %******fixed doesnt reach approach
