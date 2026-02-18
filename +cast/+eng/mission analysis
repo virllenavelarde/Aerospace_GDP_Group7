@@ -62,12 +62,12 @@ function fuel_burn_analysis()
     CD_loiter = ac.CD0 + ac.k * CL_loiter^2;
     L_over_D_loiter = CL_loiter / CD_loiter;
 
-    V_loiter = sqrt((W_end_cruise * g) / (0.5 * rho_loiter * ac.S * CL_loiter));
-    Thrust_loiter = (W_end_cruise * g) / L_over_D_loiter;
+    V_loiter = sqrt((W_end * g) / (0.5 * rho_loiter * ac.S * CL_loiter));
+    Thrust_loiter = (W_end * g) / L_over_D_loiter;
     SFC_loiter = eng.SFC_A + eng.SFC_B * ((Thrust_loiter / 2) / (delta_loiter * eng.Fn0));
     t_loiter_sec = mission.time_loiter * 60;
-    W_end_loiter = W_end_cruise / exp(t_loiter_sec * g * SFC_loiter / L_over_D_loiter);
-    loiter_fuel_burn = W_end_cruise - W_end_loiter;
+    W_end_loiter = W_end / exp(t_loiter_sec * g * SFC_loiter / L_over_D_loiter);
+    loiter_fuel_burn = W_end - W_end_loiter;
     
     total_fuel_burn = W_start - W_end + loiter_fuel_burn;
 
@@ -75,6 +75,6 @@ function fuel_burn_analysis()
     fprintf('cruise alttitude:     %d ft (M%.2f)\n', mission.alt_cruise, mission.M);
     fprintf('L/D:   %.2f\n', L_over_D);
     fprintf('SFC:   %.4e kg/N/s\n', SFC);
-    fprintf('loiter fuel burn:     %.2f kg\n', loiter_fuel_burn, mission.time_loiter, mission.alt_loiter);
+    fprintf('loiter fuel burn:     %.2f kg\n', loiter_fuel_burn);
     fprintf('fuel consumption:     %.2f kg\n', total_fuel_burn);
 end
