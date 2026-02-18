@@ -59,6 +59,7 @@ fprintf("WingLoading (raw): %.2f\n", ADP.WingLoading);
 fprintf("WingLoading: %.2f lb/ft^2\n", ADP.WingLoading * SI.lbft);
 fprintf("WingArea: %.1f m^2\n", ADP.WingArea);
 fprintf("Span: %.1f m\n", ADP.Span);
+fprintf("T/W: %.3f\n", ADP.ThrustToWeightRatio);
 
 % AeroPolar may exist only if UpdateAero builds it
 if ~isempty(ADP.AeroPolar)
