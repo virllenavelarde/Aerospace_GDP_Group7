@@ -16,7 +16,7 @@ function fuel_burn_analysis()
     eng.SFC_B = 0.48e-5;        % kg/N/s
 
     % mission profile
-    mission.range_nm = 6479.48;    % nm
+    mission.range_nm = 5470.84;    % nm
     mission.alt_cruise = 35000; % ft
     mission.M = 0.80;           
     
