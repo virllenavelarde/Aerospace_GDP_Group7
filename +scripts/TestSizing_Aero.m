@@ -12,7 +12,6 @@ ADP.Mf_res  = 0.03;
 ADP.Mf_Ldg  = 0.70;
 
 % --- Hyperparameter seed ---
-ADP.Span = 65;                          % m (seed)
 ADP.KinkPos = 10;                       % keep for now (B777 wing builder needs it)
 Lf = ADP.CockpitLength + ADP.CabinLength + 1.48*2*ADP.CabinRadius;
 ADP.WingPos = 0.44*Lf;
