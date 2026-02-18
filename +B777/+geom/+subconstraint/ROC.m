@@ -21,10 +21,15 @@ function [TW_ROC] = ROC(obj,WS)    %rate of climb --> subsonic climb --> source 
         CD = obj.AeroPolar.CD(CL);
         DtoW = CD ./ CL;
     else
-        CD0 = 0.02; %placeholder
-        AR = 9;     %placeholder
-        e = 0.8;    %placeholder
-        DtoW = q.* CD0./WS + WS./(q*pi*AR*e);
+        CD0 = obj.CD0;
+        e   = obj.e;
+        AR = obj.AR();
+        if isempty(AR) || ~isfinite(AR) || AR <= 0
+            AR = obj.AR_target; % fallback to your sizing target
+        end
+
+        DtoW = q.*CD0./WS + WS./(q*pi*AR*e);
+
     end
 
     TW_ROC = DtoW + ROC_req ./ V;      %3.11, G = climb gradient = (T-D)/W = sin(climb angle)

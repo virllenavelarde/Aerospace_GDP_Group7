@@ -24,29 +24,51 @@ classdef ADP < handle
         ThrustToWeightRatio  % 
         WingLoading          % 
     end
-    % Aerodynamic ---> NEED TO WAIT FOR CHORD LENGTH TO VERIFY REYNOLDS NUMBER*****
+    % --------------------- Aerodynamic ----------------------
     properties
-        % ------------------------- geometry -------------------------
-        V_HT = 0.9; % Horizontal Tail Volume
-        V_VT = 0.07; % Vertical tail volume
+        % --- Airfoil definition ---
+        AirfoilName = "NASA SC(2)-0714";
+        tc_ref = 0.14;                 % thickness ratio (midspan reference)
 
-        % --------------------- aero properties ----------------------
-        Cl_max = 1.5;   % airfoil max Cl for wing
-        CL_max = 2.5;   % max CL (clean) for wing (estimated rn for the sake of code working) %%%%%%%require urgent changes depending on model
-        
-        Delta_Cl_ld = 1; % Extra CL during landing
-        Delta_Cl_to = 0.8; % Extra CL at take-off
+        % --- Section lift characteristics (interpolated from XFOIL @ Re = 1e6, SC(2)-0714) ---
+        Re_section_ref = 1e6;
+        Cl_alpha_perdeg = 0.1233;      % lift-curve slope [1/deg]
+        Cl_alpha = 7.06;               % lift-curve slope [1/rad]
+        alphaL0_deg = -4.69;           % zero-lift angle [deg]
+        Cl_max = 1.77;                 % 2D clean section Clmax (from XFOIL)
 
-        CD_TO = 0.03;     % CD in ground run
-        CL_TO = 0.8;      % CL during ground run        
-        CD_LDG = 0.03;    % CD in ground run on landing
-        CL_LDG = 0.8;     % CL during ground run on landing
-        CL_cruise = 0.5;  % CL during cruise
+        % --- Wing-level lift assumptions (conceptual placeholders) ---
+        CL_max = 1.59                  %0.90*Cl_max;    % uses ADP.Cl_max=1.77  % max CL with high-lift devices  --> ****REFINEMENT (1),
+        Delta_Cl_ld = 1.0;             % extra CL during landing        --> ****REFINEMENT (2)
+        Delta_Cl_to = 0.8;             % extra CL at take-off           --> ****REFINEMENT (3)
 
-        LD_c = 16;        % Lift to drag ratio in cruise
-        LD_app = 10;      % Lift to drag ratio during landing
-        CD0 = 0.02;       % Zero-lift drag coefficent
-        e = 0.8;          % Oswald Efficency Factor
+        % --- Ground run assumptions ---
+        CD_TO = 0.03;            %--> ****REFINEMENT (4)
+        CL_TO = 0.8;             %--> ****REFINEMENT (5)
+        CD_LDG = 0.03;           %--> ****REFINEMENT (6)
+        CL_LDG = 0.8;            %--> ****REFINEMENT (7)
+
+        % --- Cruise condition ---
+        CL_cruise  %= NaN;  %to be calculated in sizing, estimated from section Clmax + 3D             % wing CL during cruise, typical widebody-level assumptions ---> *****REFINEMENT (8)
+
+        % --- Aircraft drag polar parameters (cruise) ---
+        CD0 = 0.021;                   % zero-lift drag coefficient (widebody baseline) --> %--> ****REFINEMENT (9) --> Need to do plate analysis on Wednesday
+        e = 0.85;                      % Oswald efficiency factor (range usually around 0.80-0.90)
+        CDwave = 0.001;                % wave drag increment at M ~ 0.85    %--> ****REFINEMENT (10)
+
+        V_HT = 0.9;
+        V_VT = 0.07;
+
+        CL_ceiling = 1.0;   % hyperparameter for ceiling sizing
+    end
+
+    %loop limit
+    properties
+        %loop lmit
+        AR_target = 10;                %AR target (match tube wing) (8-12)
+        Span_max = 65; %m
+        WS_min = 4.0e3;
+        WS_max = 1.30e4;
     end
 
     % Sizing Flags (whether to Adjust certain values during sizing process)
@@ -57,7 +79,7 @@ classdef ADP < handle
 
     % Concrete properties
     properties
-        Thrust;
+        Thrust; %--> may need to impose bypass ratio + Installed thrust/engine N fuselage outer
 
         % planfrom specific
         Span;
@@ -91,7 +113,7 @@ classdef ADP < handle
 
     methods
         function out = AR(obj)
-            out = obj.Span^2/obj.WingArea;
+            out = obj.Span.^2./obj.WingArea;
         end
     end
 end

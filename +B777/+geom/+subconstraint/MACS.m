@@ -38,5 +38,11 @@ function TW_alt = MACS(obj, WS_SI)
     end
 
     % --- MACS equation ---
-    TW_alt = (q * CD0 ./ WS_SI) + (WS_SI ./ (q * pi * AR * e));
+    if isprop(obj,'AeroPolar') && ~isempty(obj.AeroPolar)
+        CL = WS_SI ./ q;
+        CD = obj.AeroPolar.CD(CL);
+        TW_alt = CD ./ CL;
+    else
+        TW_alt = (q * CD0 ./ WS_SI) + (WS_SI ./ (q * pi * AR * e));
+    end
 end

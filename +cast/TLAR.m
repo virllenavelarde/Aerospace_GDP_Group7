@@ -53,7 +53,7 @@ classdef TLAR
         Vd % dive speed
         Mc_margin
         Md_margin
-        BuffetMargin_mins
+        BuffetMargin_min
     end
 
     methods(Static)
@@ -107,16 +107,16 @@ classdef TLAR
             obj.V_ld = 140./SI.knt;   %******fixed doesnt reach approach
             obj.V_climb = 250./SI.knt;
 
-            %take off **** NOT FIXED YET (NEED TO DO)
+            %take off **** NOT FIXED YET (NEED TO DO) ***************************************************************
             obj.H_to_screen = 35./SI.ft;
             obj.ISA_deltaT_TO = 15;         % K (ISA+15)
 
             obj.TOCG_AEO_gearUp   = 0.03;   % placeholder
-            obj.TOCG_OEI_gearDown = 0.005;  % placeholder
+            obj.TOCG_OEI_gearDown = 0.005;  % placeholder 
 
             obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
 
-            %roc **** NOT FIXED YET (NEED TO DO) --> NEED TO CHECK TTC
+            %roc **** NOT FIXED YET (NEED TO DO) --> NEED TO CHECK TTC **************************************************************
             obj.TTC_alt1 = 1500./SI.ft;
             obj.TTC_alt2 = max(obj.Alt_cruise, 20e3./SI.ft);
             obj.TTC_time = 30./SI.min;

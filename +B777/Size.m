@@ -1,36 +1,139 @@
 function [ADP,out] = size(ADP)
-% interatively build the model, run mission analysis and estimate required
-%  MTOM untill covnergence
-delta = inf;
-while delta>1
-    % constraint Analysis
-    [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP);   %fixed to retunr the values instead of just updating
-    ADP.WingArea = ADP.MTOM*9.81/ADP.WingLoading; % update wing area based on new W/S and MTOM (this is used for geometry build)
-    ADP.Thrust = ADP.ThrustToWeightRatio*ADP.MTOM*9.81; % update thrust based on new T/W and MTOM (this is used for geometry build)
 
-    % build geometry
+delta = inf;
+it = 0;
+
+% ---- tuning knobs (minimal + safe) ----
+relax      = 0.05;
+maxIt      = 2000;
+tol_rel    = 1e-4;     % 0.01% relative tolerance
+S_max      = 2e4;      % sanity cap
+
+% ---- Aerodynamic design choice: keep AR fixed ----
+if ~isprop(ADP,'AR_target') || isempty(ADP.AR_target)
+    ADP.AR_target = 12;   % 8–12 typical for transonic widebody , reduce AR for lower W/S
+end
+
+% ---- ICAO span cap ----
+if ~isfield(ADP,'Span_max') || isempty(ADP.Span_max)
+    ADP.Span_max = 65;     % [m]
+end
+
+% ---- W/S guardrails when span-cap forces S ----
+if ~isfield(ADP,'WS_min') || isempty(ADP.WS_min)
+    ADP.WS_min = 4.0e3;    % [N/m^2] avoid absurdly low W/S
+end
+if ~isfield(ADP,'WS_max') || isempty(ADP.WS_max)
+    ADP.WS_max = 1.30e4;   % [N/m^2] bump if your constraints allow
+end
+
+while true
+    it = it + 1;
+
+    % always recompute constraints
+    doPlot = false; % don't plot during iterations
+    [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP, doPlot);
+
+    % update wing area from W/S
+    W = ADP.MTOM*9.81;
+    ADP.WingArea = W/ADP.WingLoading;
+    ADP.Thrust   = ADP.ThrustToWeightRatio*W;
+
+    % ---------------- SPAN CAP + FIX AR ----------------
+    % Start from desired AR, then enforce span <= Span_max by overriding S (=> raises W/S)
+    ADP.Span = sqrt(ADP.AR_target * ADP.WingArea);
+
+    if ADP.Span > ADP.Span_max
+        % enforce b = b_max and keep AR_target => S = b^2 / AR
+        ADP.WingArea    = (ADP.Span_max^2) / ADP.AR_target;
+        ADP.WingLoading = W / ADP.WingArea;     % increases W/S automatically
+
+        % optional guardrails
+        ADP.WingLoading = min(max(ADP.WingLoading, ADP.WS_min), ADP.WS_max);
+        ADP.WingArea    = W / ADP.WingLoading;  % keep consistent after clamp
+
+        % update span + effective AR (AR may shift if W/S clamped)
+        ADP.Span        = ADP.Span_max;
+        ADP.AR_target   = (ADP.Span^2) / ADP.WingArea;  % effective AR after clamping
+        
+        % if mod(it,10)==0, %debug print every 10 iters
+        %      fprintf("[SPAN CAP] it=%d enforced b<=%.1f m: S=%.1f m^2, W/S=%.1f N/m^2, AR=%.2f\n", ...
+        %          it, ADP.Span_max, ADP.WingArea, ADP.WingLoading, ADP.AR_target);
+        % end
+    end
+    % ---------------------------------------------------
+
+    if ~isfinite(ADP.WingArea) || ADP.WingArea > S_max
+        error("WingArea runaway at it=%d: S=%.3e m^2, MTOM=%.3e kg, WS=%.3e Pa", ...
+              it, ADP.WingArea, ADP.MTOM, ADP.WingLoading);
+    end
+
+    % build geometry + aero
     [~,B7Mass] = B777.BuildGeometry(ADP);
-    
-    % update Aero
+
+    % enforce span again in case geometry overwrites it
+    if ADP.Span > ADP.Span_max
+        ADP.Span = ADP.Span_max;
+    end
+
     B777.UpdateAero(ADP);
-    
-    % mission Analysis
-    [BlockFuel,TripFuel,ResFuel,Mf_TOC,MissionTime] = B777.MissionAnalysis(ADP,ADP.TLAR.Range, ADP.MTOM);
-    
-    % calc OEM
-    idx = contains([B7Mass.Name],"Fuel","IgnoreCase",true) | contains([B7Mass.Name],"Payload","IgnoreCase",true);
+
+    % mission
+    [BlockFuel,TripFuel,ResFuel,Mf_TOC,MissionTime] = ...
+        B777.MissionAnalysis(ADP, ADP.TLAR.Range, ADP.MTOM);
+
+    if any(~isfinite([BlockFuel,TripFuel,ResFuel,Mf_TOC,MissionTime]))
+        error("MissionAnalysis returned NaN/Inf at it=%d", it);
+    end
+
+    % ---- fuel sanity guard ----
+    fuelFrac = BlockFuel / ADP.MTOM;
+    if fuelFrac > 0.7
+        error("Nonphysical fuel fraction at it=%d: BlockFuel/MTOM=%.3f", ...
+              it, fuelFrac);
+    end
+
+    % OEM excludes Fuel & Payload
+    idx = contains([B7Mass.Name],"Fuel","IgnoreCase",true) | ...
+          contains([B7Mass.Name],"Payload","IgnoreCase",true);
+
     ADP.OEM = sum([B7Mass(~idx).m]);
-    % estimate MTOM
-    mtom = sum([B7Mass(1:end-2).m])+ADP.TLAR.Payload+BlockFuel;
-    delta = abs(ADP.MTOM - mtom);
+
+    % MTOM update
+    mtom_new = ADP.OEM + ADP.TLAR.Payload + BlockFuel;
+    mtom     = (1-relax)*ADP.MTOM + relax*mtom_new;
+
+    % convergence check
+    delta = abs(mtom - ADP.MTOM);
+    if (delta / max(ADP.MTOM,1)) < tol_rel
+        ADP.MTOM = mtom;
+        % Plot final consistent constraint diagram once
+        [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP, true);
+        break;
+    end
+
     ADP.MTOM = mtom;
-    ADP.Mf_Fuel = BlockFuel /ADP.MTOM;
-    ADP.Mf_TOC = Mf_TOC;
-    ADP.Mf_Ldg = (ADP.MTOM-TripFuel)/ADP.MTOM;
-    ADP.Mf_res = ResFuel/ADP.MTOM;
-    %estimate outut parameters
-    out = struct();
-    out.BlockFuel = BlockFuel;
-    out.DOC = BlockFuel*1;
-    out.ATR = BlockFuel; 
+
+    % update mass fractions
+    ADP.Mf_Fuel = BlockFuel / ADP.MTOM;
+    ADP.Mf_TOC  = (1-relax)*ADP.Mf_TOC + relax*Mf_TOC;
+    ADP.Mf_Ldg  = (ADP.MTOM-TripFuel)/ADP.MTOM;
+    ADP.Mf_res  = ResFuel/ADP.MTOM;
+
+    % % debug print
+    % if mod(it,10)==0
+    %     AR = ADP.Span^2 / ADP.WingArea;
+    %     fprintf("it=%4d  MTOM=%.3e  S=%.1f  b=%.1f  AR=%.2f  W/S=%.1f  fuelFrac=%.3f\n", ...
+    %         it, ADP.MTOM, ADP.WingArea, ADP.Span, AR, ADP.WingLoading, fuelFrac);
+    % end
+
+    if it > maxIt
+        error("Sizing did not converge after %d iterations.", maxIt);
+    end
+end
+
+out = struct();
+out.BlockFuel = BlockFuel;
+out.DOC = BlockFuel;
+out.ATR = BlockFuel;
 end
