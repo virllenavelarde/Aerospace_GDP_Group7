@@ -24,35 +24,59 @@ classdef ADP_BW < handle
         ThrustToWeightRatio  % 
         WingLoading          % 
     end
-    % Aerodynamic
+    % --------------------- Aerodynamic (BoxWing, compatible with tube-wing pipeline) ----------------------
     properties
-        % ------------------------- geometry -------------------------
-        V_HT = 0.55; % Horizontal Tail Volume
-        V_VT = 0.05; % Vertical tail volume
+        % --- Airfoil definition ---
+        AirfoilName = "NASA SC(2)-0714";
+        tc_ref = 0.14;                 % thickness ratio (midspan reference)
 
-        % --------------------- aero properties ----------------------
-        Cl_max = 1.5;   % airfoil max Cl for wing
-        CL_max = 2.5;   % max CL (clean) for wing (estimated rn for the sake of code working) %%%%%%%require urgent changes depending on model
-        
-        Delta_Cl_ld = 1; % Extra CL during landing
-        Delta_Cl_to = 0.8; % Extra CL at take-off
+        % --- Section lift characteristics (interpolated from XFOIL @ Re = 1e6, SC(2)-0714) ---
+        Re_section_ref   = 1e6;
+        Cl_alpha_perdeg  = 0.1233;     % [1/deg]
+        Cl_alpha         = 7.06;       % [1/rad]
+        alphaL0_deg      = -4.69;      % [deg]
+        Cl_max           = 1.77;       % 2D clean section Clmax
 
-        CD_TO = 0.03;     % CD in ground run
-        CL_TO = 0.8;      % CL during ground run        
-        CD_LDG = 0.03;    % CD in ground run on landing
-        CL_LDG = 0.8;     % CL during ground run on landing
-        CL_cruise = 0.5;  % CL during cruise
+        % --- Wing-level lift assumptions (conceptual placeholders) ---
+        CL_max     = 1.59;             % 3D CLEAN wing CLmax (no high-lift)
+        Delta_Cl_ld = 1.0;             % landing increment
+        Delta_Cl_to = 0.8;             % takeoff increment
 
-        LD_c = 16;        % Lift to drag ratio in cruise
-        LD_app = 10;      % Lift to drag ratio during landing
-        CD0 = 0.02;       % Zero-lift drag coefficent
-        e = 0.8;          % Oswald Efficency Factor
+        % --- Ground run assumptions (TO/Landing config) ---
+        CD_TO  = 0.05;
+        CL_TO  = 0.8;
+        CD_LDG = 0.08;
+        CL_LDG = 0.5;
+
+        % --- Cruise condition ---
+        CL_cruise;                     % computed in sizing script (leave unset here)
+
+        % --- Aircraft drag polar parameters (cruise) ---
+        CD0    = 0.021;                % baseline (replace later with plate build-up)
+        e      = 0.90;                 % BW effective span efficiency (use 0.88–0.95)
+        CDwave = 0.001;                % wave drag increment near transonic cruise
+
+        % --- Tail volume coefficients (BW defaults) ---
+        V_HT = 0.55;
+        V_VT = 0.05;
+
+        % --- Ceiling sizing knob ---
+        CL_ceiling = 1.0;
     end
 
     % Sizing Flags (whether to Adjust certain values during sizing process)
     properties
         isSizeEng = true; % whether to change engine maximum Thrust Value
         isSizeWing = true; % whether to size the wing
+    end
+
+    %loop limit
+    properties
+        %loop lmit
+        AR_target = 10;                %AR target (match tube wing) (8-12)
+        Span_max = 65; %m
+        WS_min = 4.0e3;
+        WS_max = 1.30e4;
     end
 
     % Concrete properties
@@ -89,9 +113,15 @@ classdef ADP_BW < handle
         CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
     end
 
+    properties
+        etaLift   = 0.5;
+        alphaArea = 0.5;
+        kJoin     = 0.1;
+    end
+
     methods
         function out = AR(obj)
-            out = obj.Span^2/obj.WingArea;
+            out = obj.Span.^2./obj.WingArea;
         end
     end
 end

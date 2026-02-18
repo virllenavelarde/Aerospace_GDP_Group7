@@ -9,6 +9,7 @@ classdef AeroPolar
         %CLmin % Cl at min drag
         CDwave
         AR
+        etaLift
     end
 
     % methods
@@ -37,6 +38,8 @@ classdef AeroPolar
 
     methods
         function obj = AeroPolar(ADP)
+            if isprop(ADP,'etaLift'); obj.etaLift = ADP.etaLift; end %impose eta
+
             obj.AR = ADP.Span^2 / ADP.WingArea;
 
             %from ADP
@@ -48,7 +51,17 @@ classdef AeroPolar
         end
 
         function CD = CD(obj,CL) %CD0 + CL^2/piARe+CDwave
-            CD = obj.CD0 + obj.Beta .* CL.^2 + obj.CDwave;
+        % Base induced factor
+        Beta_eff = obj.Beta;
+        % ------------------- BoxWing induced benefit -------------------
+        % If ADP passed an etaLift knob (0..1), reduce induced drag accordingly.
+        % etaLift ~ "fractional induced reduction benefit" (conceptual).
+        % Example: etaLift = 0.2 => 20% less induced drag term.
+        if isprop(obj,'etaLift') && ~isempty(obj.etaLift) && isfinite(obj.etaLift)
+            eta = min(max(obj.etaLift,0),0.6);   % clamp to avoid crazy benefit
+            Beta_eff = (1-eta) * obj.Beta;
+        end
+        CD = obj.CD0 + Beta_eff .* CL.^2 + obj.CDwave;
         end
     end
 end

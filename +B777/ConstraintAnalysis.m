@@ -63,7 +63,7 @@ if nargin < 2, doPlot = true; end
 
         TW_to   = toRow(B777.geom.subconstraint.TOL(obj, WS),  numel(WS), 'TOL');
         TW_roc  = toRow(B777.geom.subconstraint.ROC(obj, WS),  numel(WS), 'ROC');
-        TW_tocg = toRow(B777.geom.subconstraint.TOCG(obj, WS), numel(WS), 'TOCG');
+        TW_tocg = toRow(B777.geom.subconstraint.TOCG(obj, WS, AEO), numel(WS), 'TOCG');
         TW_macs = toRow(B777.geom.subconstraint.MACS(obj, WS), numel(WS), 'MACS');
 
         TW_env = max([TW_to; TW_roc; TW_tocg; TW_macs], [], 1);
