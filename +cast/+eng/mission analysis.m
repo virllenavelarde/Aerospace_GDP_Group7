@@ -25,7 +25,11 @@ function fuel_burn_analysis()
     alt_m = mission.alt_cruise * 0.3048; % ft to meter
     [~, a_cruise, P_cruise, rho_cruise] = atmosisa(alt_m);
     V_cruise = mission.M * a_cruise;     
-    delta = P_cruise / 101325;           
+    delta = P_cruise / 101325;     
+
+    % loiter profile
+    mission.alt_loiter = 1500;  % ft
+    mission.time_loiter = 30;   % minutes
 
     % Breguet Range Iteration
     W_start = (ac.OEW + ac.payload) * 1.12; 
@@ -47,12 +51,30 @@ function fuel_burn_analysis()
     range_m = mission.range_nm * 1852;
     weight_ratio = exp((range_m * g * SFC) / (V_cruise * L_over_D));
     W_end = W_start / weight_ratio;
+
+    % Loiter Calculation
+    alt_m_loiter = mission.alt_loiter * 0.3048;
+    [~, ~, P_loiter, rho_loiter] = atmosisa(alt_m_loiter);
+    delta_loiter = P_loiter / 101325;
     
-    total_fuel_burn = W_start - W_end;
+    % Loiter condition: max L/D (CL_loiter = sqrt(CD0/k))
+    CL_loiter = sqrt(ac.CD0 / ac.k);
+    CD_loiter = ac.CD0 + ac.k * CL_loiter^2;
+    L_over_D_loiter = CL_loiter / CD_loiter;
+
+    V_loiter = sqrt((W_end * g) / (0.5 * rho_loiter * ac.S * CL_loiter));
+    Thrust_loiter = (W_end * g) / L_over_D_loiter;
+    SFC_loiter = eng.SFC_A + eng.SFC_B * ((Thrust_loiter / 2) / (delta_loiter * eng.Fn0));
+    t_loiter_sec = mission.time_loiter * 60;
+    W_end_loiter = W_end / exp(t_loiter_sec * g * SFC_loiter / L_over_D_loiter);
+    loiter_fuel_burn = W_end - W_end_loiter;
+    
+    total_fuel_burn = W_start - W_end + loiter_fuel_burn;
 
     fprintf('input range:          %d nm\n', mission.range_nm);
     fprintf('cruise alttitude:     %d ft (M%.2f)\n', mission.alt_cruise, mission.M);
     fprintf('L/D:   %.2f\n', L_over_D);
     fprintf('SFC:   %.4e kg/N/s\n', SFC);
+    fprintf('loiter fuel burn:     %.2f kg\n', loiter_fuel_burn);
     fprintf('fuel consumption:     %.2f kg\n', total_fuel_burn);
 end

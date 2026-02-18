@@ -5,13 +5,14 @@
 function [TW_TOCG] = TOCG(obj,WS)   %take off climb gradient
     %requirement
     % NOTE: 0.024 is NOT the usual "OEI second segment" value for twins
-    G_min = 0.024; %FAR, 3% at V_CL, but we need to calculate the actual value based on the TOCG conditions (gear up/down, V2/VTO, etc)
+    G_min = obj.TLAR.TOCG_AEO_gearUp;  % or OEI requirement depending on segment
 
     %conditions
-    alt_tocg = 0; %airport alt
-    rho = cast.atmos(alt_tocg);
+    alt_tocg = 0; %airport alt  
+    [rho,~] = cast.atmos(alt_tocg,0);
 
-    CLmax_TO = 2.2;   % placeholder, assume single-slotted flap equivalent
+
+    CLmax_TO = obj.CL_max + obj.Delta_Cl_to;   % use your own takeoff CLmax
     Vs_TO = sqrt( 2*WS ./ (rho * CLmax_TO) );
     V = 1.25 * Vs_TO;    % V2
     q = 0.5 * rho .* (V.^2);
@@ -22,9 +23,12 @@ function [TW_TOCG] = TOCG(obj,WS)   %take off climb gradient
         CD = obj.AeroPolar.CD(CL);
         DoverW = CD ./ CL;
     else
-        CD0 = 0.03;      % higher than cruise due to high-lift / gear (placeholder)
-        AR  = 10;
-        e   = 0.80;
+        CD0 = obj.CD_TO;   % use takeoff config drag
+        e   = obj.e;
+        AR = obj.AR();
+        if isempty(AR) || ~isfinite(AR) || AR <= 0
+            AR = obj.AR_target;
+        end
         DoverW = q .* CD0 ./ WS + WS ./ (q*pi*AR*e);
     end
 
