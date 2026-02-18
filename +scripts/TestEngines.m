@@ -3,7 +3,7 @@ clear; clc;
 
 %% Instantiate engines
 tp  = cast.eng.TurboProp.TP400_D6();   % A400M turboprop
-tf  = cast.eng.TurboFan.GE90();        % GE90 turbofan
+tf  = cast.eng.TurboFan.CFM_LEAP_1A();        % Turbofan from Yuke
 
 %% Mach and altitude grids
 M_vec   = linspace(0.1, 0.95, 40);      % Mach sweep

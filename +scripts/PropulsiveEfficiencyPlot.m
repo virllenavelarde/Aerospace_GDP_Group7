@@ -21,7 +21,7 @@ alt_ft = 20000;  % Altitude in feet - CHANGE THIS TO ANALYZE DIFFERENT CRUISE AL
 % === END PARAMETERS ===
 
 tp = cast.eng.TurboProp.TP400_D6();
-tf = cast.eng.TurboFan.GE90();
+tf = cast.eng.TurboFan.CFM_LEAP_1A(); %from Yuke's spreadsheet
 
 % Mach sweep across tactical to cruise speeds
 M_vec = linspace(0.05, 0.95, 200);

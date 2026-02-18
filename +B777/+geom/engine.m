@@ -4,7 +4,7 @@ function [GeomObj,massObj] = engine(obj)
 
 % Ensure baseline engine exists (geometry + TSFC model)
 if isempty(obj.Engine)
-    obj.Engine = cast.eng.TurboFan.GE90(1, obj.TLAR.Alt_cruise, obj.TLAR.M_c);
+    obj.Engine = cast.eng.TurboFan.CFM_LEAP_1A(1, obj.TLAR.Alt_cruise, obj.TLAR.M_c);   %from YUke
 end
 
 Eng0 = obj.Engine;  % keep original geometry fields
