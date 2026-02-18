@@ -15,7 +15,7 @@ if ~isprop(ADP,'AR_target') || isempty(ADP.AR_target)
 end
 
 % ---- ICAO span cap ----
-if ~isprrop(ADP,'Span_max') || isempty(ADP.Span_max)
+if ~isprop(ADP,'Span_max') || isempty(ADP.Span_max)
     ADP.Span_max = 65;     % [m]
 end
 
