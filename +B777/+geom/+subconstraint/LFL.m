@@ -1,19 +1,24 @@
-%use appraoch constraint for VSL, then VSL for Sfl
+%landing field length constraint using Corke landing-parameter correlation.
+%returns maximum allowable W/S given required landing field length, sigma, and CLmax,landing.
+function WS_Max_LFL = LFL(obj)  % returns [Pa]
+    % requirement
+    sL_m  = obj.TLAR.GroundRunLanding;   % [m]  %check this in ADP and TLAR
+    sL_ft = sL_m * SI.ft;               % [ft]
 
-function [WS_Max_LFL] = LFL(obj)
-    %requirements
-    sL_m = obj.TLAR.GroundRunLanding; %m
-    sL_ft = sL_m * SI.ft; %m -> ft
+    % landing CLmax
+    CLmax_land = obj.CL_max + obj.Delta_Cl_ld;
 
-    %assumptions
-    CL_max_clean = obj.CL_max; %adp val
-    CL_max_landing = CL_max_clean + obj.Delta_Cl_ld; %adp val
+    % airport density ratio sigma (ISA sea level by default)
+    hAirport = 0;
+    dT = 0;
+    [~,~,~,~,~,~,sigma] = cast.atmos(hAirport, dT);
 
-    %airport atmos (assume SL, ISA)
-    hAirport = 0;     % m       %maximum allowable limits for airports*
-    [~,~,~,~,~,~,sigma] = cast.atmos(hAirport);    %want density ratio from height and isa offset, [rho,a,T,P,nu,z,sigma] = atmos(h,tOffset)
+    % Corke landing parameter correlation
+    LP = (sL_ft - 400) / 118;
 
-    %model
-    LP = (sL_ft - 400) ./ 118; %landing parameter from corke, ft
-    WS_Max_LFL = (sigma .* CL_max_landing) .* (LP); %lb/ft^2
+    % Corke gives W/S in lb/ft^2: (W/S)_lbft2 = sigma * CLmax_land * LP
+    WS_lbft2 = (sigma .* CLmax_land) .* LP;
+
+    % convert lb/ft^2 -> Pa (N/m^2)
+    WS_Max_LFL = WS_lbft2 / SI.lbft;
 end
