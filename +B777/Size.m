@@ -111,6 +111,15 @@ while true
         ADP.MTOM = mtom;
         % Plot final consistent constraint diagram once
         [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP, true);
+        % ---- RE-SYNC S and b to the final WS/TW ----
+        W = ADP.MTOM * 9.81;
+        ADP.WingArea = W / ADP.WingLoading;
+        ADP.Span     = min(sqrt(ADP.AR_target * ADP.WingArea), ADP.Span_max);
+        % if want span to be hard-capped, need to re-enforce S again:
+        if ADP.Span == ADP.Span_max
+            ADP.WingArea    = (ADP.Span_max^2) / ADP.AR_target;
+            ADP.WingLoading = W / ADP.WingArea;
+        end
         break;
     end
 
