@@ -15,15 +15,15 @@ if ~isprop(ADP,'AR_target') || isempty(ADP.AR_target)
 end
 
 % ---- ICAO span cap ----
-if ~isfield(ADP,'Span_max') || isempty(ADP.Span_max)
+if ~isprrop(ADP,'Span_max') || isempty(ADP.Span_max)
     ADP.Span_max = 65;     % [m]
 end
 
 % ---- W/S guardrails when span-cap forces S ----
-if ~isfield(ADP,'WS_min') || isempty(ADP.WS_min)
+if ~isprop(ADP,'WS_min') || isempty(ADP.WS_min)
     ADP.WS_min = 4.0e3;    % [N/m^2] avoid absurdly low W/S
 end
-if ~isfield(ADP,'WS_max') || isempty(ADP.WS_max)
+if ~isprop(ADP,'WS_max') || isempty(ADP.WS_max)
     ADP.WS_max = 1.30e4;   % [N/m^2] bump if your constraints allow
 end
 
@@ -34,42 +34,44 @@ while true
     doPlot = false; % don't plot during iterations
     [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP, doPlot);
 
-    % update wing area from W/S
-    W = ADP.MTOM*9.81;
-    ADP.WingArea = W/ADP.WingLoading;
-    ADP.Thrust   = ADP.ThrustToWeightRatio*W;
+    % build geometry (BoxWing / TubeWing)
+    % (do aero sizing first, then build geometry, then UpdateAero)
 
-    % ---------------- SPAN CAP + FIX AR ----------------
-    % Start from desired AR, then enforce span <= Span_max by overriding S (=> raises W/S)
+    % ---------------- update Aero / planform from constraints ----------------
+    % update wing area from W/S
+    W = ADP.MTOM * 9.81;
+    ADP.WingArea = W / ADP.WingLoading;
+    ADP.Thrust   = ADP.ThrustToWeightRatio * W;
+
+    % ------------------------- SPAN CAP + FIX AR ----------------------------
+    % Start from desired AR, then enforce b <= Span_max by overriding S (=> raises W/S)
     ADP.Span = sqrt(ADP.AR_target * ADP.WingArea);
 
     if ADP.Span > ADP.Span_max
         % enforce b = b_max and keep AR_target => S = b^2 / AR
         ADP.WingArea    = (ADP.Span_max^2) / ADP.AR_target;
-        ADP.WingLoading = W / ADP.WingArea;     % increases W/S automatically
+        ADP.WingLoading = W / ADP.WingArea;  % increases W/S automatically
 
         % optional guardrails
         ADP.WingLoading = min(max(ADP.WingLoading, ADP.WS_min), ADP.WS_max);
-        ADP.WingArea    = W / ADP.WingLoading;  % keep consistent after clamp
+        ADP.WingArea    = W / ADP.WingLoading; % keep consistent after clamp
 
         % update span + effective AR (AR may shift if W/S clamped)
-        ADP.Span        = ADP.Span_max;
-        ADP.AR_target   = (ADP.Span^2) / ADP.WingArea;  % effective AR after clamping
-        
-        % if mod(it,10)==0, %debug print every 10 iters
-        %      fprintf("[SPAN CAP] it=%d enforced b<=%.1f m: S=%.1f m^2, W/S=%.1f N/m^2, AR=%.2f\n", ...
-        %          it, ADP.Span_max, ADP.WingArea, ADP.WingLoading, ADP.AR_target);
-        % end
+        ADP.Span      = ADP.Span_max;
+        ADP.AR_target = (ADP.Span^2) / ADP.WingArea; % effective AR after clamping
     end
-    % ---------------------------------------------------
 
     if ~isfinite(ADP.WingArea) || ADP.WingArea > S_max
         error("WingArea runaway at it=%d: S=%.3e m^2, MTOM=%.3e kg, WS=%.3e Pa", ...
               it, ADP.WingArea, ADP.MTOM, ADP.WingLoading);
     end
 
-    % build geometry + aero
-    [~,B7Mass] = B777.BuildGeometry(ADP);
+    % -------------------------- build geometry ------------------------------
+    if isa(ADP, 'B777.ADP_BW')
+        [~, B7Mass] = B777.BuildGeometry_BW(ADP); %span definition of AR may vary (recheck)
+    else
+        [~, B7Mass] = B777.BuildGeometry(ADP);
+    end
 
     % enforce span again in case geometry overwrites it
     if ADP.Span > ADP.Span_max
