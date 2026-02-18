@@ -111,6 +111,14 @@ classdef ADP < handle
         CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
     end
 
+    % Box wing properties
+    properties
+        etaLift = 0.5; 
+        alphaArea = 0.5;
+        kJoin = 0.1;
+    end
+
+    
     methods
         function out = AR(obj)
             out = obj.Span.^2./obj.WingArea;
