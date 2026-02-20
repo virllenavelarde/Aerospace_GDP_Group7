@@ -211,5 +211,7 @@ plot(Spans,fuels/1e3,'-o')
 xlabel('Span [m]')
 ylabel('Block Fuel [t]')
 
+LogBW = scripts.logPolarToStruct(ADP, "BoxWing");
+save("AeroLog_BoxWing.mat","LogBW");
 
 %% Sizing Function

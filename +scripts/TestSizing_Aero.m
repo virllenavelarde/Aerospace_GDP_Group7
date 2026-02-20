@@ -117,4 +117,7 @@ if ~isempty(ADP.AeroPolar)
     fprintf("\n--- POLAR SUMMARY ---\n");
     fprintf("Cruise: CL=%.3f CD=%.4f L/D=%.2f\n", CLc, CDc, LDc);
     fprintf("Max L/D (in plot range): CL=%.3f CD=%.4f L/D=%.2f\n", CL_LDmax, CD_LDmax, LDmax);
+
+    LogTW = scripts.logPolarToStruct(ADP, "TubeWing");
+    save("AeroLog_TubeWing.mat","LogTW");   % writes file to cwd
 end
