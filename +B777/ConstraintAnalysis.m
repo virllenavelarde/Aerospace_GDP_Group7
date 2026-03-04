@@ -18,7 +18,6 @@
 %obj.WingArea = obj.MTOM*9.81/obj.WingLoading/cosd(SweepQtrChord);
 %obj.Thrust = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
 
-
 %end
 
 function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj, doPlot)
