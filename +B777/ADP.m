@@ -38,15 +38,15 @@ classdef ADP < handle
         Cl_max = 1.77;                 % 2D clean section Clmax (from XFOIL)
 
         % --- Wing-level lift assumptions (conceptual placeholders) ---
-        CL_max = 1.59                  %0.90*Cl_max;    % uses ADP.Cl_max=1.77  % max CL with high-lift devices  --> ****REFINEMENT (1),
+        CL_max = 1.59                  %0.90*Cl_max;    % uses ADP.Cl_max=1.77  % max CL clean*** (no high-lift devices)
         Delta_Cl_ld = 1.0;             % extra CL during landing        --> ****REFINEMENT (2)
         Delta_Cl_to = 0.8;             % extra CL at take-off           --> ****REFINEMENT (3)
 
         % --- Ground run assumptions ---
-        CD_TO = 0.03;            %--> ****REFINEMENT (4)
+        CD_TO = 0.05;            %--> ****REFINEMENT (4)
         CL_TO = 0.8;             %--> ****REFINEMENT (5)
-        CD_LDG = 0.03;           %--> ****REFINEMENT (6)
-        CL_LDG = 0.8;            %--> ****REFINEMENT (7)
+        CD_LDG = 0.08;           %--> ****REFINEMENT (6)
+        CL_LDG = 0.5;            %--> ****REFINEMENT (7)
 
         % --- Cruise condition ---
         CL_cruise  %= NaN;  %to be calculated in sizing, estimated from section Clmax + 3D             % wing CL during cruise, typical widebody-level assumptions ---> *****REFINEMENT (8)
@@ -110,14 +110,6 @@ classdef ADP < handle
         CabinRadius = 2.8;
         CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
     end
-
-    % Box wing properties
-    properties
-        etaLift = 0.5; 
-        alphaArea = 0.5;
-        kJoin = 0.1;
-    end
-
     
     methods
         function out = AR(obj)

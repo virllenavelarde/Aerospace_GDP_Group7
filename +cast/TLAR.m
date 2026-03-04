@@ -20,8 +20,11 @@ classdef TLAR
 
     properties       %take off constraint properties
         H_to_screen
-        TOCG_AEO_gearUp
         TOCG_OEI_gearDown
+        TOCG_AEO_gearUp
+        TOCG_OEI_gearUp
+        TOCG_OEI_enroute
+        TOCG_OEI_approach 
         V_tocg_ref
         ISA_deltaT_TO
     end
@@ -75,6 +78,7 @@ classdef TLAR
             %take off
             obj.H_to_screen = 35./SI.ft;
             obj.TOCG_AEO_gearUp   = 0.03;   % 3% at V_CL
+            obj.TOCG_OEI_gearUp = 0.024;
             obj.TOCG_OEI_gearDown = 0.005;  % 0.5% at V_CL
             obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
             obj.ISA_deltaT_TO = 15;         % K (ISA+15)
@@ -101,7 +105,7 @@ classdef TLAR
             obj.Alt_max = 12.5./SI.km; %m (12.5km) ****** fixed
             obj.Alt_cruise = 11.5./SI.km; %m (11.5km) ****** fixed
             obj.Crew = 4; %****** fixed
-            obj.Payload = 100./SI.Tonne; % kg (from tonnes) ***** fixed
+            obj.Payload = 123./SI.Tonne; % kg (from tonnes) ***** fixed, per aircraft (6 aircraft total payload = 738 tonnes)
             obj.CrewMass = (80+10)*obj.Crew;
             obj.V_app = 145./SI.knt;    %******fixed 11/2 to match TLAR
             obj.V_ld = 140./SI.knt;   %******fixed doesnt reach approach
@@ -111,8 +115,11 @@ classdef TLAR
             obj.H_to_screen = 35./SI.ft;
             obj.ISA_deltaT_TO = 15;         % K (ISA+15)
 
-            obj.TOCG_AEO_gearUp   = 0.03;   % placeholder
-            obj.TOCG_OEI_gearDown = 0.005;  % placeholder 
+            obj.TOCG_AEO_gearUp   = 0.03;   % AEO climb target (OK)
+            obj.TOCG_OEI_gearUp   = 0.024;  % OEI 2nd segment (critical for twins)
+            obj.TOCG_OEI_enroute  = 0.011;
+            obj.TOCG_OEI_approach = 0.021;
+
 
             obj.V_tocg_ref = obj.V_climb;   % placeholder: you may replace with V2/VTO
 

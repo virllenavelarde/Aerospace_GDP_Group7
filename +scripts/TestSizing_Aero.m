@@ -59,6 +59,7 @@ fprintf("WingLoading (raw): %.2f\n", ADP.WingLoading);
 fprintf("WingLoading: %.2f lb/ft^2\n", ADP.WingLoading * SI.lbft);
 fprintf("WingArea: %.1f m^2\n", ADP.WingArea);
 fprintf("Span: %.1f m\n", ADP.Span);
+fprintf("T/W: %.3f\n", ADP.ThrustToWeightRatio);
 
 % AeroPolar may exist only if UpdateAero builds it
 if ~isempty(ADP.AeroPolar)
@@ -75,4 +76,48 @@ if ~isempty(ADP.AeroPolar)
     fprintf("L/D(CL_%s=%.3f): %.1f\n", tag, CL_use, CL_use/CD_use);
 else
     fprintf("AeroPolar not built yet (check B777.UpdateAero).\n");
+end
+
+%graph aero polarar CD vs CL : Drag polarar plots
+if ~isempty(ADP.AeroPolar)
+    polar = ADP.AeroPolar;
+
+    CL = linspace(0, 1.2, 200);
+    CD = polar.CD(CL);
+    LD = CL ./ CD;
+
+    % cruise point
+    CLc = ADP.CL_cruise;
+    CDc = polar.CD(CLc);
+    LDc = CLc / CDc;
+
+    % max L/D (within plotted range)
+    [LDmax, iMax] = max(LD);
+    CL_LDmax = CL(iMax);
+    CD_LDmax = CD(iMax);
+
+    figure(201); clf; grid on; hold on;
+    plot(CL, CD, 'LineWidth', 2);
+    plot(CLc, CDc, 'ko', 'MarkerFaceColor','k');
+    plot(CL_LDmax, CD_LDmax, 'ks', 'MarkerFaceColor','k');
+    xlabel('C_L'); ylabel('C_D');
+    title('Drag Polar: C_D vs C_L');
+    legend('Polar', sprintf('Cruise (CL=%.2f, CD=%.3f)', CLc, CDc), ...
+           sprintf('Max L/D (CL=%.2f)', CL_LDmax), 'Location','best');
+
+    figure(202); clf; grid on; hold on;
+    plot(CL, LD, 'LineWidth', 2);
+    plot(CLc, LDc, 'ko', 'MarkerFaceColor','k');
+    plot(CL_LDmax, LDmax, 'ks', 'MarkerFaceColor','k');
+    xlabel('C_L'); ylabel('L/D');
+    title('Efficiency: L/D vs C_L');
+    legend('L/D', sprintf('Cruise (L/D=%.1f)', LDc), ...
+           sprintf('Max L/D=%.1f', LDmax), 'Location','best');
+
+    fprintf("\n--- POLAR SUMMARY ---\n");
+    fprintf("Cruise: CL=%.3f CD=%.4f L/D=%.2f\n", CLc, CDc, LDc);
+    fprintf("Max L/D (in plot range): CL=%.3f CD=%.4f L/D=%.2f\n", CL_LDmax, CD_LDmax, LDmax);
+
+    LogTW = scripts.logPolarToStruct(ADP, "TubeWing");
+    save("AeroLog_TubeWing.mat","LogTW");   % writes file to cwd
 end
