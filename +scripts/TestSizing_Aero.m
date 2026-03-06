@@ -61,6 +61,9 @@ fprintf("WingArea: %.1f m^2\n", ADP.WingArea);
 fprintf("Span: %.1f m\n", ADP.Span);
 fprintf("T/W: %.3f\n", ADP.ThrustToWeightRatio);
 
+%calculate CD0 for the wing (using Michel's criterion for transition)
+ADP.CD0 = B777.CD0(ADP);   
+
 % AeroPolar may exist only if UpdateAero builds it
 if ~isempty(ADP.AeroPolar)
     % Use computed cruise CL (fallback to 0.5 if not available)

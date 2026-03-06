@@ -52,7 +52,7 @@ classdef ADP < handle
         CL_cruise  %= NaN;  %to be calculated in sizing, estimated from section Clmax + 3D             % wing CL during cruise, typical widebody-level assumptions ---> *****REFINEMENT (8)
 
         % --- Aircraft drag polar parameters (cruise) ---
-        CD0 = 0.021;                   % zero-lift drag coefficient (widebody baseline) --> %--> ****REFINEMENT (9) --> Need to do plate analysis on Wednesday
+        CD0 = 0.021;                   %value calcuelated in the script, but first seed is set here
         e = 0.85;                      % Oswald efficiency factor (range usually around 0.80-0.90)
         CDwave = 0.001;                % wave drag increment at M ~ 0.85    %--> ****REFINEMENT (10)
 
@@ -60,6 +60,8 @@ classdef ADP < handle
         V_VT = 0.07;
 
         CL_ceiling = 1.0;   % hyperparameter for ceiling sizing
+
+        
     end
 
     %loop limit

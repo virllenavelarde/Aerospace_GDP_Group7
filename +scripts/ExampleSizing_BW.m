@@ -102,6 +102,39 @@ else
     fprintf("AeroPolar not built yet (check B777.UpdateAero).\n");
 end
 
+%% build the "sized" geometry and plot it
+[B7Geom,B7Mass] = B777.BuildGeometry_BW(ADP); % get list of components geometries and masses
+
+% plot the geometry (ontop of an image of a B777F for reference)
+f = figure(1);
+clf;
+img = imread('B777F_planform.png');
+imshow(img, 'XData', [0 63.7], 'YData', [-64.8 64.8]/2);
+
+cast.draw(B7Geom,B7Mass)
+ax = gca;
+ax.XAxis.Visible = "on";
+ax.YAxis.Visible = "on";
+axis equal
+ylim([-0.5 0.5]*ADP.Span)
+
+
+% print some key data points
+names  = string({B7Mass.Name});
+masses = double([B7Mass.m]);
+wingMask = contains(names,"Wing","IgnoreCase",true) | contains(names,"Join","IgnoreCase",true);
+mWingTot = sum(masses(wingMask));
+
+fprintf('MTOM: %0.0f t, Fuel Mass: %0.0f t, Wing(+Join) Mass %0.0f t\n', ...
+    ADP.MTOM/1e3, ADP.Mf_Fuel*ADP.MTOM/1e3, mWingTot/1e3);
+
+if ~isempty(ADP.AeroPolar)
+    fprintf('CD0: %0.3f, CD (CL): %0.3f \n',ADP.AeroPolar.CD(0),ADP.AeroPolar.CD(0.5));
+end
+
+%calculate CD0 for the wing (using Michel's criterion for transition)
+ADP.CD0 = B777.CD0(ADP);    %call ADP bc ADP already = ADP_BW since the first tline   
+
 %graph aero polarar CD vs CL : Drag polarar plots
 if ~isempty(ADP.AeroPolar)
     polar = ADP.AeroPolar;
@@ -141,37 +174,6 @@ if ~isempty(ADP.AeroPolar)
     fprintf("\n--- POLAR SUMMARY (BW) ---\n");
     fprintf("Cruise: CL=%.3f CD=%.4f L/D=%.2f\n", CLc, CDc, LDc);
     fprintf("Max L/D (in plot range): CL=%.3f CD=%.4f L/D=%.2f\n", CL_LDmax, CD_LDmax, LDmax);
-end
-
-
-%% build the "sized" geometry and plot it
-[B7Geom,B7Mass] = B777.BuildGeometry_BW(ADP); % get list of components geometries and masses
-
-% plot the geometry (ontop of an image of a B777F for reference)
-f = figure(1);
-clf;
-img = imread('B777F_planform.png');
-imshow(img, 'XData', [0 63.7], 'YData', [-64.8 64.8]/2);
-
-cast.draw(B7Geom,B7Mass)
-ax = gca;
-ax.XAxis.Visible = "on";
-ax.YAxis.Visible = "on";
-axis equal
-ylim([-0.5 0.5]*ADP.Span)
-
-
-% print some key data points
-names  = string({B7Mass.Name});
-masses = double([B7Mass.m]);
-wingMask = contains(names,"Wing","IgnoreCase",true) | contains(names,"Join","IgnoreCase",true);
-mWingTot = sum(masses(wingMask));
-
-fprintf('MTOM: %0.0f t, Fuel Mass: %0.0f t, Wing(+Join) Mass %0.0f t\n', ...
-    ADP.MTOM/1e3, ADP.Mf_Fuel*ADP.MTOM/1e3, mWingTot/1e3);
-
-if ~isempty(ADP.AeroPolar)
-    fprintf('CD0: %0.3f, CD (CL): %0.3f \n',ADP.AeroPolar.CD(0),ADP.AeroPolar.CD(0.5));
 end
 
 %% Example call to mission analysis discipline
