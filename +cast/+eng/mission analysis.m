@@ -5,7 +5,7 @@ function fuel_burn_analysis()
     ac.payload = 92000;         % kg
     ac.S = 422.5;                 % m^2
     ac.AR = 10.0;               
-    ac.e = 0.8;                
+    ac.e = 1.8;                
     ac.CD0 = 0.0221;            
     ac.k = 1 / (pi * ac.AR * ac.e); % Induced drag factor
 
