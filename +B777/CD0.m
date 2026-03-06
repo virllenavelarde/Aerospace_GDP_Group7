@@ -25,7 +25,7 @@
         x_tc = 0.37; % supercritical airfoil http://airfoiltools.com/airfoil/details?airfoil=sc20714-il max at 37% chord
 
         %sweep
-        if isprop(obj,'SweepLE') && ~isempty(obj.SweepLE) && isfinite(obj.SweepLE)
+        if isprop(obj,'SweepLE') && ~isempty(obj.SweepLE) && isfinite(obj.SweepLE) %%%%Need to check the values here to change in accordance with hyperparameter
             % Convert LE sweep to approx max-thickness sweep
             % Lambda_maxt ~ Lambda_LE - arctan(2*tc / AR)  (rough)
             AR = b^2 / S_ref;
