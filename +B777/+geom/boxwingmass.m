@@ -20,21 +20,21 @@ function [m_boxwing] = raymerWingMass(obj)
     k_join = obj.kJoin;       % join penalty (e.g. 0.05-0.20)
 
     % ----- split areas (still using total S) -----
-    Sf = alpha * S;  %area front
-    Sr = (1 - alpha) * S;  %area rear
+    Sf = alpha * S;  %area front         %area of front wing
+    Sr = (1 - alpha) * S;  %area rear    %area of rear wing
 
     % For early Class I, assume both wings have same span as baseline constraint
-    bf = b;
-    br = b;
+    bf = b;                         % span of front wing [m]
+    br = b;                         % span of rear wing [m]
 
     SweepQtrChord = real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c));
     sweepHalf = SweepQtrChord;    
 
-    b_f_ft  = bf * SI.ft;           % [ft]
-    b_r_ft  = br * SI.ft;           % [ft]
+    b_f_ft  = bf * SI.ft;           % span of front wing[ft]
+    b_r_ft  = br * SI.ft;           % span of rear wing[ft]
 
-    S_f_ft  = Sf* (SI.ft)^2;        % [ft^2]
-    S_r_ft  = Sr* (SI.ft)^2;        % [ft^2]
+    S_f_ft  = Sf* (SI.ft)^2;        % area of front wing[ft^2]
+    S_r_ft  = Sr* (SI.ft)^2;        % area of rear wing[ft^2]
 
     n_z    = 2.5 * 1.5;             % ultimate load factor
 
@@ -43,8 +43,8 @@ function [m_boxwing] = raymerWingMass(obj)
     % Example pattern (you'll match the exact variable names in your code):
     Wdg_total_lb = obj.MTOM * obj.Mf_TOC * SI.lb;   % <-- only if this is how wing.m defines it
 
-    Wdg_f_lb = eta * Wdg_total_lb;
-    Wdg_r_lb = (1 - eta) * Wdg_total_lb;
+    Wdg_f_lb = eta * Wdg_total_lb;        %atm eta=0.6, so front wing generates 60% of lift
+    Wdg_r_lb = (1 - eta) * Wdg_total_lb;  %atm 1-eta = 0.4, so rear wing generates 40% of lift
 
     % ----- geometry assumptions needed by Raymer -----
     % Use the SAME sweep / tc  assumptions as wing.m for consistency
@@ -73,9 +73,19 @@ function [m_boxwing] = raymerWingMass(obj)
     m_wing_front = (w_front_lb/SI.lb);
     m_wing_rear =  (w_rear_lb/SI.lb);
 
+    m_per_span_f = m_wing_front/bf;                 %mass per meter of span for front wing
+    m_per_span_r = m_wing_rear/br;                  %mass per meter of span for rear wing   
+    m_per_span_av = (m_per_span_f + m_per_span_r)/2 %average mass per meter of span
 
-    % ----- add join penalty -----
-    m_boxwing = (m_wing_front + m_wing_rear) * (1 + obj.kJoin);
+    %introduce joint mass:
+    m_joint_height = obj.CabinRadius;
+    m_joint_mass = m_joint_height * m_per_span_av;
+    m_joint_mass_total = m_joint_mass *2;
+
+    % ----- add relief factor -----
+    m_boxwing = obj.k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) 
+
+    
 
     
 end
@@ -94,3 +104,4 @@ end
 %     %calc total area
 %     S = 2*(A1+A2+A3);
 % end
+
