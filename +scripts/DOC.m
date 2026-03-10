@@ -1,5 +1,5 @@
 %% ECONOMIC EVALUATION
-% function DOC(MTOM, no_landings, ICAO_taxi_configuration, no_days_landing, fuel_kerosene_percentage, fuel_SAF_percentage, fuel_consumption_per_flight, total_flight_hours)
+% function [] = DOC(MTOM, no_landings, ICAO_taxi_configuration, no_days_landing, fuel_kerosene_percentage, fuel_SAF_percentage, fuel_consumption_per_flight, total_flight_hours)
 % Inputs from other disciplines
 MTOM = 270; % tonnes
 no_landings = 50; % number of landings per year per aircraft

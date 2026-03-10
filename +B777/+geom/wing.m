@@ -3,8 +3,8 @@ function [GeomObj,massObj] = wing(obj)
 
 
 %% Calculate wing planform parameters
-SweepQtrChord = real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c)); % quarter chord sweep angle --> %need to fix this too
-tr =  -0.0083*SweepQtrChord + 0.4597; % taper ratio of outer portion of the wing
+SweepQtrChord = 31; % [28 34] deree %real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c)); % quarter chord sweep angle --> %need to fix this too (Mstar = Wing technology factor, M_c = cruise Mach) [28-34 deg], sweep, but LE or QC sweep
+tr =  0.30; % taper ratio of outer portion of the wing, linearly tapered: (MAC) = 9.109 m, 12.78 root, 0.3 taper, mainly use MAC chord***
 
 b = obj.Span;
 %S = (obj.MTOM*9.81)/obj.WingLoading;    %get area from W/S, and MTOM
