@@ -120,8 +120,8 @@ classdef ADP_BW < handle
     end
 
     properties  %wing geometry
-        FrontWingPos
-        RearWingPos
+        FrontWingPos =  0.4*63.7;
+        RearWingPos = 0.7*63.7;
     end
 
     methods
