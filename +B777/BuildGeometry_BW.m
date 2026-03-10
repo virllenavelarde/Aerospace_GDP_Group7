@@ -1,7 +1,7 @@
 function [gList,mList] = BuildGeometry_BW(ADP)
     % Box-wing ONLY geometry builder
     
-    FuncNames = {'fuselage_bw', 'wing', 'empenage_bw', 'engine', 'landingGear'};
+    FuncNames = {'fuselage_bw', 'boxwingmass', 'empenage_bw', 'engine', 'landingGear'};
     
     gList = cast.GeomObj.empty;
     mList = cast.MassObj.empty;

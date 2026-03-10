@@ -16,6 +16,10 @@ ADP.V_VT = 0.05;    % vertical tail volume coefficent
 ADP.HtpPos = 0.88*70.8;% normalised HTP position (% of fuselage length)
 ADP.VtpPos = 0.82*70.8;% normalised VTP position (% of fuselage length)
 
+% --------------------- set Boxwing specific parameters ---------------------
+ADP.FrontWingPos = 0.40*63.7;
+ADP.RearWingPos  = 0.70*63.7;
+
 % ------------------------- set Hyper-parameters -------------------------
 ADP.Span = 64.8;
 % ADP.FleetSize = 6;
