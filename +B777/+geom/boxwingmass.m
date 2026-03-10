@@ -7,7 +7,7 @@
 %wing was assumed to be a trapezoid shape (to calculated Cr)
 
 
-function [GeomObj,m_boxwing] = raymerWingMass(obj)
+function [GeomObj,massObj,m_boxwing] = boxwingmass(obj)
 
 
     % ----- baseline planform parameters (same as wing.m) -----
@@ -17,7 +17,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     % ----- box-wing hyperparameters (you will sweep these) -----
     eta    = obj.etaLift;     % lift split front wing (0.4-0.6 typical)
     alpha  = obj.alphaArea;   % area split front wing (often = eta initially)
-    k_relief = obj.relief;       % join penalty (e.g. 0.05-0.20)
+    k_relief = obj.k_relief;       % relief factor 
 
     % ----- split areas (still using total S) -----
     Sf = alpha * S;  %area front         %area of front wing
@@ -60,7 +60,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     t_wf = 0.15*c_rf*SI.ft;      % Thickness of root (front wing), with 15% of root chord [ft] 
     t_wr = 0.15*c_rr*SI.ft;      % [ft]
 
-     %% calculate geometry  - follows the same process as Fintan's code for wing.m file
+    %% calculate geometry  - follows the same process as Fintan's code for wing.m file
     
     c_tf = tr*c_rf;              %Tip chord for front wing [m]
     c_tr = tr*c_rr;              %Tip chord for rear wing [m]
@@ -89,7 +89,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     Xs_f = [x_le_f, ys_f; flipud(x_te_f), flipud(ys_f)];
     Xs_r = [x_le_r, ys_r; flipud(x_te_r), flipud(ys_r)];
 
-    %CALCULATED AERODYNAMIC CHORD below up till line 108
+    %NEED TO CALCULATE AERODYNAMIC CHORD HERE 
     % taper ratios
     lambda_f = c_tf / c_rf;
     lambda_r = c_tr / c_rr;
@@ -125,7 +125,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     GeomObj(2) = cast.GeomObj(Name="Rear Wing",  Xs=Xs_r);
 
     
-
+    %% calculate mass
     % ----- compute each wing panel mass using Raymer helper -----
     w_front_lb = 0.00125*Wdg_f_lb * (b_f_ft/cosLambda)^0.75*...
         (1 + sqrt(6.3*cosLambda/b_f_ft))*n_z^0.55*...
@@ -141,16 +141,28 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
 
     m_per_span_f = m_wing_front/bf;                 %mass per meter of span for front wing
     m_per_span_r = m_wing_rear/br;                  %mass per meter of span for rear wing   
-    m_per_span_av = (m_per_span_f + m_per_span_r)/2 %average mass per meter of span
+    m_per_span_av = (m_per_span_f + m_per_span_r)/2; %average mass per meter of span
 
     %introduce joint mass:
     m_joint_height = obj.CabinRadius;
     m_joint_mass = m_joint_height * m_per_span_av;
     m_joint_mass_total = m_joint_mass *2;
 
-    % ----- add relief factor -----
-    m_boxwing = k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) 
+    massObj(1) = cast.MassObj(Name="Front Wing", ...
+    m=k_relief*m_wing_front, ...
+    X=[x_ac_f; 0]);
 
+    massObj(2) = cast.MassObj(Name="Rear Wing", ...
+    m=k_relief*m_wing_rear, ...
+    X=[obj.RearWingPos; 0]);
+
+    massObj(3) = cast.MassObj(Name="Wing Joints", ...
+    m=k_relief*m_joint_mass_total, ...
+    X=[(obj.FrontWingPos + obj.RearWingPos)/2; 0]);
+    
+    % ----- add relief factor -----
+    m_boxwing = k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) ;
+    
     
 
     
