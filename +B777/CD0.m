@@ -45,9 +45,9 @@
                 % -------------------------------------------------
                 % REAL wetted areas from geometry
                 % run this to find your exact component names:
-                %   for i=1:numel(B7Geom)
-                %       fprintf('[%d] %s\n', i, B7Geom(i).Name);
-                %   end
+                for i=1:numel(B7Geom)
+                    fprintf('[%d] %s\n', i, B7Geom(i).Name);
+                end
                 % -------------------------------------------------
                 %not yet finished, need to recheck the geometry and sum wetted areas by component name
                 % S_wet_main  = sumWetted(B7Geom, 'LowerWing');
