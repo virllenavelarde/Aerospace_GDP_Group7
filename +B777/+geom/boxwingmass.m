@@ -17,7 +17,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     % ----- box-wing hyperparameters (you will sweep these) -----
     eta    = obj.etaLift;     % lift split front wing (0.4-0.6 typical)
     alpha  = obj.alphaArea;   % area split front wing (often = eta initially)
-    k_join = obj.kJoin;       % join penalty (e.g. 0.05-0.20)
+    k_relief = obj.relief;       % join penalty (e.g. 0.05-0.20)
 
     % ----- split areas (still using total S) -----
     Sf = alpha * S;  %area front         %area of front wing
@@ -149,7 +149,7 @@ function [GeomObj,m_boxwing] = raymerWingMass(obj)
     m_joint_mass_total = m_joint_mass *2;
 
     % ----- add relief factor -----
-    m_boxwing = obj.k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) 
+    m_boxwing = k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) 
 
     
 
@@ -170,5 +170,6 @@ end
 %     %calc total area
 %     S = 2*(A1+A2+A3);
 % end
+
 
 
