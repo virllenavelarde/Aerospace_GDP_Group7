@@ -7,7 +7,7 @@
 %wing was assumed to be a trapezoid shape (to calculated Cr)
 
 
-function [m_boxwing] = raymerWingMass(obj)
+function [GeomObj,m_boxwing] = raymerWingMass(obj)
 
 
     % ----- baseline planform parameters (same as wing.m) -----

@@ -119,6 +119,11 @@ classdef ADP_BW < handle
         k_relief   = 0.75; %relief factor from papers listed in methodology
     end
 
+    properties  %wing geometry
+        FrontWingPos
+        RearWingPos
+    end
+
     methods
         function out = AR(obj)
             out = obj.Span.^2./obj.WingArea;
