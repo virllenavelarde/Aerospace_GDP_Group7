@@ -1,173 +1,304 @@
-%helper function to calculate CD0 for two wing planforms, doesnt need surface roughness if we're using michel's criterion
-    function CD0_wing = CD0(obj,B7Geom)
-        if nargin < 2
-            B7Geom = [];    %estimate
-        end
+%  B777.CD0  Full aircraft parasite drag buildup
+%  Wing:      Michel transition criterion + Schlichting mixed Cf + Raymer FF
+%  Fuselage:  Raymer body-of-revolution FF (eq 12.31) + wetted area (eq 12.11)
+%  Nacelles:  Raymer nacelle FF (eq 12.32) + Q=1.3 wing-mounted interference
+%  Tail:      Same flat-plate method as wing (HTP + VTP)
+%  Misc:      3% of total (leakage, gaps, antennas) -- Raymer ch12 guideline
+%
+%  REF: Raymer, "Aircraft Design: A Conceptual Approach", Ch.12
+%
+%  CALL:
+%    ADP.CD0 = B777.CD0(ADP)             % TubeWing, no geometry
+%    ADP.CD0 = B777.CD0(ADP, B7Geom)     % BoxWing with geometry
+%    [CD0, breakdown] = B777.CD0(ADP, B7Geom)  % with full breakdown struct
 
-        %atmos / cruise
-        [rho, a, ~, ~, mu] = cast.atmos(obj.TLAR.Alt_cruise); 
-        V = obj.TLAR.M_c * a;   %Velocity at cruise
-        M = obj.TLAR.M_c;    %Mach
+function [CD0_total, breakdown] = CD0(obj, B7Geom)
+    if nargin < 2
+        B7Geom = [];
+    end
 
-        %geom
-        S_ref = obj.WingArea; %reference area
-        b = obj.Span;        %span
+    % =========================================================
+    % ATMOSPHERE / CRUISE CONDITION
+    % =========================================================
+    [rho, a, ~, ~, mu] = cast.atmos(obj.TLAR.Alt_cruise);
+    V = obj.TLAR.M_c * a;
+    M = obj.TLAR.M_c;
 
-        %check for MAC availability
-        if isprop(obj, 'MAC') && ~isempty(obj.MAC) && isfinite(obj.MAC)
-            c_ref = obj.MAC; %use provided MAC
-        else
-            c_ref = S_ref / b; %mean aerodynamic chord, S/b first-cut
-        end
-        
-        %thickness ratio
+    % =========================================================
+    % SHARED GEOMETRY
+    % =========================================================
+    S_ref = obj.WingArea;
+    b     = obj.Span;
+    AR    = b^2 / S_ref;
+
+    % -- MAC --------------------------------------------------
+    if isprop(obj,'MAC') && ~isempty(obj.MAC) && isfinite(obj.MAC)
+        c_ref = obj.MAC;
+    else
+        c_ref = S_ref / b;
+        warning('B777.CD0: MAC not found, using S/b = %.3f m', c_ref);
+    end
+
+    % -- Thickness ratio --------------------------------------
+    if isprop(obj,'tc_ref') && ~isempty(obj.tc_ref) && isfinite(obj.tc_ref)
         tc = obj.tc_ref;
-        x_tc = 0.37; % supercritical airfoil http://airfoiltools.com/airfoil/details?airfoil=sc20714-il max at 37% chord
+    elseif isprop(obj,'tc') && ~isempty(obj.tc) && isfinite(obj.tc) %in case name changes
+        tc = obj.tc;
+    else
+        tc = 0.14;
+        warning('B777.CD0: t/c not found, using fallback tc = %.2f', tc);
+    end
 
-        %sweep
-        if isprop(obj,'SweepLE') && ~isempty(obj.SweepLE) && isfinite(obj.SweepLE) %%%%Need to check the values here to change in accordance with hyperparameter
-            % Convert LE sweep to approx max-thickness sweep
-            % Lambda_maxt ~ Lambda_LE - arctan(2*tc / AR)  (rough)
-            AR = b^2 / S_ref;
-            Lambda_deg = obj.SweepLE - rad2deg(atan(2*tc / AR));
-        elseif isprop(obj,'Sweep25') && ~isempty(obj.Sweep25) && isfinite(obj.Sweep25)
-            Lambda_deg = obj.Sweep25 - 2.0;   % max-t line ~ 2 deg aft of c/4
+    % -- Wing sweep -------------------------------------------
+    if isprop(obj,'SweepLE') && ~isempty(obj.SweepLE) && isfinite(obj.SweepLE)
+        Lambda_deg = obj.SweepLE - rad2deg(atan(2*tc / AR));
+    elseif isprop(obj,'Sweep25') && ~isempty(obj.Sweep25) && isfinite(obj.Sweep25)
+        Lambda_deg = obj.Sweep25 - 2.0;
+    else
+        Lambda_deg = 30.0;
+        warning('B777.CD0: sweep not found, using fallback Lambda = %.1f deg', Lambda_deg);
+    end
+    Lambda_rad = deg2rad(Lambda_deg);
+
+    % -- Fuselage geometry ------------------------------------
+    L_fuse = obj.CockpitLength + obj.CabinLength + 1.48*2*obj.CabinRadius;
+    d_fuse = 2 * obj.CabinRadius;
+
+    % =========================================================
+    % LOCAL HELPER: mixed Cf with Michel transition + Eckert compressibility
+    % same method used for all components
+    % =========================================================
+    function Cf = getCf(Re, M_loc)
+        % Schlichting full-turbulent
+        Cf_turb = 0.455 / (log10(Re))^2.58;
+
+        % Michel criterion for transition
+        michel_res  = @(Re_x) 0.664.*Re_x.^0.5 ...
+                            - 1.174.*(1 + 22400./Re_x).*Re_x.^0.46;
+        f_lo = michel_res(1e4);
+        f_hi = michel_res(Re);
+        if sign(f_lo) ~= sign(f_hi)
+            Re_x_tr = fzero(michel_res, [1e4, Re]);
         else
-            Lambda_deg = 30.0;
-            warning('CD0_wing_michel: sweep not found, using fallback Lambda = %.1f deg', Lambda_deg);
+            Re_x_tr = fzero(michel_res, 1e7);
         end
-        Lambda_rad = deg2rad(Lambda_deg);
+        Re_x_tr = max(min(Re_x_tr, Re), 1e4);
 
-        
-        %%wetted --> check if case if box-wing or tube wing + %interference factor (wing-fuse) (not yet finished (the isa loop))
-        if isa(obj, 'B777.ADP_BW')
-            if ~isempty(B7Geom)
-                % -------------------------------------------------
-                % REAL wetted areas from geometry
-                % run this to find your exact component names:
-                for i=1:numel(B7Geom)
-                    fprintf('[%d] %s\n', i, B7Geom(i).Name);
-                end
-                % -------------------------------------------------
-                %not yet finished, need to recheck the geometry and sum wetted areas by component name
-                % S_wet_main  = sumWetted(B7Geom, 'LowerWing');
-                % S_wet_upper = sumWetted(B7Geom, 'UpperWing');
-                % S_wet_fins  = sumWetted(B7Geom, 'Join');
-                % S_wet = S_wet_main + S_wet_upper + S_wet_fins;
-
-                % fprintf('  [BW wetted areas from geometry]\n');
-                % fprintf('  S_wet lower wing  = %.2f m^2\n', S_wet_main);
-                % fprintf('  S_wet upper wing  = %.2f m^2\n', S_wet_upper);
-                % fprintf('  S_wet tip fins    = %.2f m^2\n', S_wet_fins);
-            else
-                % -------------------------------------------------
-                % FALLBACK first-cut estimates (B7Geom not provided), assumptions, need reference and fixing
-                % -------------------------------------------------
-                S_wet_main = 2.0 * S_ref * (1 + 0.2*tc);
-
-                if isprop(obj,'alphaArea') && ~isempty(obj.alphaArea) && isfinite(obj.alphaArea)
-                    alpha_area = obj.alphaArea;
-                else
-                    alpha_area = 0.5;
-                end
-                S_wet_upper = 2.0 * (alpha_area * S_ref) * (1 + 0.2*tc);
-
-                h_fin      = 0.10 * (b/2);
-                c_tip      = c_ref * 0.35;
-                S_wet_fins = 2 * (2 * h_fin * c_tip);
-
-                S_wet = S_wet_main + S_wet_upper + S_wet_fins;
-                warning('B777.CD0: B7Geom not provided, using first-cut BW wetted area estimates');
-
-                fprintf('  [BW wetted areas -- first-cut estimates]\n');
-                fprintf('  S_wet lower wing  = %.2f m^2\n', S_wet_main);
-                fprintf('  S_wet upper wing  = %.2f m^2\n', S_wet_upper);
-                fprintf('  S_wet tip fins    = %.2f m^2\n', S_wet_fins);
-            end
-            Q = 1.05; % interference factor for box wing, slightly higher than clean tube wing, max bound 1.10
-            
-        else %tube wing
-            Q = 1.0; %clean mid/low = 1.0, 1.05-1.10 for high wing
-            S_wet = 2.0 * S_ref * (1 + 0.2*tc); %usually wetted ~2x ref area, but can use first-cut
-        end
-        Swet_Sref = S_wet / S_ref;
-
-        %Reynolds number
-        Re_L = (rho * V * c_ref) / mu;
-
-        %Find transition using Michel's criterion (1951): https://www.researchgate.net/publication/260310401_An_Investigation_of_the_Numerical_Prediction_of_Static_and_Dynamic_Stall/citations
-        %Retheta = 1.174(1+22400,Rex)Rex^(0.46), Retheta = 0.664sqrt(Rex) (LHS)
-        michel_residual = @(Re_x) 0.664 .* Re_x.^0.5 - 1.174 .* (1 + (22400 ./ Re_x)) .* Re_x.^0.46; %F(Re_x)
-        
-        %sign changes in brackets indicate root crossings, which is where the transition occurs
-        f_low = michel_residual(1e4);
-        f_high = michel_residual(Re_L);
-        if sign(f_low) ~= sign(f_high)
-            Re_x_tr = fzero(michel_residual, [1e4, Re_L]);
-        else
-            % Fallback: flat-plate Michel solution ~1e7 (from our earlier analysis)
-            Re_x_tr = fzero(michel_residual, 1e7);
-            warning('CD0_wing_michel: Michel bracket sign check failed, using unbounded fzero');
-        end
-
-        Re_x_tr = max(min(Re_x_tr, Re_L), 1e4); %initial guess, clamp to physical domain
-        Re_theta_tr = 0.664 * sqrt(Re_x_tr); %calculate Reynolds number at transition
-        xc_tr = Re_x_tr / Re_L; %chord fraction at transition
-        
-        %%schlichting full-turb 
-        Cf_turb = 0.455 ./ (log10(Re_L)).^2.58;
-
-        %A factor
+        % A-factor (Schlichting table)
         Re_tr_table = [3e5,  5e5,  3e6,   1e7  ];
         A_table     = [1050, 1700, 8700,  27000 ];
-        A = interp1(Re_tr_table, A_table, Re_x_tr, 'linear', 'extrap');
-        A = max(A, 0);   % physical floor
+        A    = max(interp1(Re_tr_table, A_table, Re_x_tr, 'linear','extrap'), 0);
 
-         % Mixed Cf (incompressible)
-        Cf_mixed_incomp = Cf_turb - A / Re_L;
-        Cf_mixed_incomp = max(Cf_mixed_incomp, 0);   % sanity floor
+        % mixed incompressible Cf
+        Cf_i = max(Cf_turb - A/Re, 0);
 
-        % Diagnostic laminar Cf at transition (not used in CD0 directly)
-        Cf_lam_tr = 1.328 / sqrt(Re_x_tr);
-
-        %% Compressibility correction (Eckert reference temperature method)
-        comp_corr = (1 + 0.144 * M^2)^0.65;
-        Cf_mixed  = Cf_mixed_incomp / comp_corr;
-
-        %%Form Factor
-        FF_thickness = 1 + (0.6/x_tc)*tc + 100*tc^4;
-        FF_mach_sweep = 1.34 * M^0.18 * cos(Lambda_rad)^0.28;
-        FF = FF_thickness * FF_mach_sweep;
-
-        %%CD0 calculation
-        CD0_wing = Cf_mixed * FF * Q * Swet_Sref;
-
-        %  PRINT SUMMARY
-        fprintf('\n==============================================\n');
-        fprintf('  CD0_WING_MICHEL - RESULTS\n');
-        fprintf('==============================================\n');
-        fprintf('  c_ref (MAC)           = %.3f m\n',   c_ref);
-        fprintf('  Re_L                  = %.4e\n',      Re_L);
-        fprintf('  Re_x,tr  (Michel)     = %.4e\n',      Re_x_tr);
-        fprintf('  Re_theta,tr           = %.2f\n',      Re_theta_tr);
-        fprintf('  x_tr/c                = %.4f  (%.1f%% chord)\n', xc_tr, xc_tr*100);
-        fprintf('----------------------------------------------\n');
-        fprintf('  Cf turb (Schlichting) = %.4e\n',      Cf_turb);
-        fprintf('  A-factor              = %.0f\n',       A);
-        fprintf('  Cf mixed (incomp.)    = %.4e\n',      Cf_mixed_incomp);
-        fprintf('  Compressibility corr  = %.4f\n',      comp_corr);
-        fprintf('  Cf mixed (final)      = %.4e\n',      Cf_mixed);
-        fprintf('----------------------------------------------\n');
-        fprintf('  t/c                   = %.3f\n',      tc);
-        fprintf('  x/c max-thickness     = %.2f\n',      x_tc);
-        fprintf('  Sweep Lambda          = %.1f deg\n',  Lambda_deg);
-        fprintf('  FF (thickness)        = %.4f\n',      FF_thickness);
-        fprintf('  FF (Mach+sweep)       = %.4f\n',      FF_mach_sweep);
-        fprintf('  FF (total)            = %.4f\n',      FF);
-        fprintf('  Swet/Sref             = %.4f\n',      Swet_Sref);
-        fprintf('----------------------------------------------\n');
-        fprintf('  CD0_wing              = %.5f  <-- output\n', CD0_wing);
-        fprintf('==============================================\n\n');
-
-        %note, the different material affectts the transition locatioon (accounted by turbulence intensity by Michel's criterion)
+        % Eckert reference temperature compressibility correction
+        Cf  = Cf_i / (1 + 0.144*M_loc^2)^0.65;
     end
+
+    % =========================================================
+    % 1. WING CD0
+    % Michel criterion + Raymer FF eq 12.30
+    % FF = [1 + (0.6/x_tc)*tc + 100*tc^4] * [1.34*M^0.18*cos(L)^0.28]
+    % =========================================================
+    Re_wing = rho * V * c_ref / mu;
+    Cf_wing = getCf(Re_wing, M);
+
+    x_tc    = 0.37;   % SC(2)-0714: max thickness at 37% chord
+    FF_wing = (1 + (0.6/x_tc)*tc + 100*tc^4) * ...
+              (1.34 * M^0.18 * cos(Lambda_rad)^0.28);
+
+    % wetted area -- class specific
+    if isa(obj, 'B777.ADP_BW')
+        if isprop(obj,'S_wet_front') && ~isempty(obj.S_wet_front)
+            S_wet_wing = obj.S_wet_front + obj.S_wet_rear + obj.S_wet_fins;
+        else
+            S_wet_wing = 2*S_ref*(1+0.2*tc)*(1+obj.alphaArea);
+            warning('B777.CD0: BW S_wet not found, using estimate');
+        end
+        Q_wing = 1.10;   % tip junction interference -- Raymer table 12.6
+    else
+        S_wet_wing = 2.0 * S_ref * (1 + 0.2*tc);   % Raymer eq 12.28
+        Q_wing     = 1.0;
+    end
+
+    CD0_wing = Cf_wing * FF_wing * Q_wing * (S_wet_wing/S_ref);
+
+    % =========================================================
+    % 2. FUSELAGE CD0
+    % Raymer eq 12.31: FF = 1 + 60/f^3 + f/400
+    % Raymer eq 12.11: S_wet fuselage
+    % =========================================================
+    f_ratio  = L_fuse / d_fuse;                       % fineness ratio [-]
+    FF_fuse  = 1 + 60/f_ratio^3 + f_ratio/400;        % Raymer eq 12.31
+
+    % Raymer eq 12.11 -- wetted area streamlined body of revolution
+    S_wet_fuse = (pi * d_fuse * L_fuse) * ...
+                 (1 - 2/f_ratio)^(2/3) * (1 + 1/f_ratio^2);
+
+    Re_fuse  = rho * V * L_fuse / mu;
+    Cf_fuse  = getCf(Re_fuse, M);
+    Q_fuse   = 1.0;   % no external junction for fuselage itself
+
+    CD0_fuse = Cf_fuse * FF_fuse * Q_fuse * (S_wet_fuse/S_ref);
+
+    % =========================================================
+    % 3. NACELLE CD0
+    % Raymer eq 12.32: FF = 1 + 0.35/f_nac
+    % Q = 1.3 wing-mounted podded engines -- Raymer table 12.6
+    % =========================================================
+    if isprop(obj,'Engine') && ~isempty(obj.Engine) && ...
+       isprop(obj.Engine,'Diameter') && isfinite(obj.Engine.Diameter)
+        d_nac = obj.Engine.Diameter;
+        L_nac = obj.Engine.Length;
+    else
+        % statistical estimate for large turbofan (BPR~8, B777-class)
+        % d ~ 0.033*sqrt(T_engine[kN])  from Raymer statistical data
+        T_total  = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
+        T_engine = T_total / 2;                    % 2 engines
+        d_nac    = 0.033 * sqrt(T_engine/1000);    % m
+        L_nac    = 1.5 * d_nac;                    % fineness ratio ~1.5
+        warning('B777.CD0: Engine dims not found, using statistical d=%.2fm L=%.2fm', ...
+                d_nac, L_nac);
+    end
+
+    f_nac    = L_nac / d_nac;
+    FF_nac   = 1 + 0.35/f_nac;                    % Raymer eq 12.32
+    S_wet_nac = pi * d_nac * L_nac;               % per nacelle, cylinder approx
+    Re_nac   = rho * V * L_nac / mu;
+    Cf_nac   = getCf(Re_nac, M);
+    Q_nac    = 1.30;   % wing-mounted podded -- Raymer table 12.6
+    n_eng    = 2;
+
+    CD0_nac  = Cf_nac * FF_nac * Q_nac * (n_eng * S_wet_nac / S_ref);
+
+    % =========================================================
+    % 4. TAIL CD0  (HTP + VTP)
+    % Same flat-plate + Raymer FF as wing
+    % tc_tail = 0.10, sweep_tail = 25 deg -- typical transport tail
+    % Q = 1.05 for tail-fuselage junction -- Raymer table 12.6
+    % =========================================================
+    tc_tail         = 0.10;
+    x_tc_tail       = 0.30;   % NACA 4-series tail: max t at 30% chord
+    Lambda_tail_rad = deg2rad(25.0);
+
+    FF_tail = (1 + (0.6/x_tc_tail)*tc_tail + 100*tc_tail^4) * ...
+              (1.34 * M^0.18 * cos(Lambda_tail_rad)^0.28);
+
+    % HTP area
+    if isprop(obj,'HtpArea') && ~isempty(obj.HtpArea) && isfinite(obj.HtpArea)
+        S_HTP = obj.HtpArea;
+    else
+        % estimate from horizontal tail volume coefficient
+        % V_HT = S_HTP * L_HT / (S_ref * c_ref)
+        L_HT  = obj.HtpPos - obj.WingPos;
+        S_HTP = obj.V_HT * S_ref * c_ref / L_HT;
+        warning('B777.CD0: HtpArea not found, estimating from V_HT = %.5f m^2', S_HTP);
+    end
+    S_wet_HTP = 2.0 * S_HTP * (1 + 0.2*tc_tail);
+    Re_HTP    = rho * V * sqrt(S_HTP) / mu;   % sqrt(S_HTP) as ref length
+    Cf_HTP    = getCf(Re_HTP, M);
+    CD0_HTP   = Cf_HTP * FF_tail * 1.05 * (S_wet_HTP/S_ref);
+
+    % VTP area
+    if isprop(obj,'VtpArea') && ~isempty(obj.VtpArea) && isfinite(obj.VtpArea)
+        S_VTP = obj.VtpArea;
+    else
+        % estimate from vertical tail volume coefficient
+        % V_VT = S_VTP * L_VT / (S_ref * b)
+        L_VT  = obj.VtpPos - obj.WingPos;
+        S_VTP = obj.V_VT * S_ref * b / L_VT;
+        warning('B777.CD0: VtpArea not found, estimating from V_VT = %.5f m^2', S_VTP);
+    end
+    S_wet_VTP = 2.0 * S_VTP * (1 + 0.2*tc_tail);
+    Re_VTP    = rho * V * sqrt(S_VTP) / mu;
+    Cf_VTP    = getCf(Re_VTP, M);
+    CD0_VTP   = Cf_VTP * FF_tail * 1.05 * (S_wet_VTP/S_ref);
+
+    CD0_tail  = CD0_HTP + CD0_VTP;
+
+    % =========================================================
+    % 5. MISCELLANEOUS DRAG
+    % Raymer ch12: 3% of component sum for leakage, gaps, antennas
+    % =========================================================
+    CD0_subtotal = CD0_wing + CD0_fuse + CD0_nac + CD0_tail;
+    CD0_misc     = 0.03 * CD0_subtotal;
+
+    % =========================================================
+    % 6. TOTAL
+    % =========================================================
+    CD0_total = CD0_subtotal + CD0_misc;
+
+    % =========================================================
+    % OUTPUT STRUCT
+    % =========================================================
+    breakdown.CD0_wing   = CD0_wing;
+    breakdown.CD0_fuse   = CD0_fuse;
+    breakdown.CD0_nac    = CD0_nac;
+    breakdown.CD0_HTP    = CD0_HTP;
+    breakdown.CD0_VTP    = CD0_VTP;
+    breakdown.CD0_tail   = CD0_tail;
+    breakdown.CD0_misc   = CD0_misc;
+    breakdown.CD0_total  = CD0_total;
+    breakdown.Cf_wing    = Cf_wing;
+    breakdown.FF_wing    = FF_wing;
+    breakdown.Re_wing    = Re_wing;
+    breakdown.S_wet_wing = S_wet_wing;
+    breakdown.S_wet_fuse = S_wet_fuse;
+    breakdown.f_ratio    = f_ratio;
+    breakdown.FF_fuse    = FF_fuse;
+
+    % =========================================================
+    % PRINT SUMMARY
+    % =========================================================
+    if isa(obj, 'B777.ADP_BW')
+        config = 'BOXWING';
+    else
+        config = 'TUBEWING';
+    end
+
+    fprintf('\n==============================================\n');
+    fprintf('  B777.CD0 FULL BUILDUP - %s\n', config);
+    fprintf('==============================================\n');
+    fprintf('  Cruise M              = %.3f\n',         M);
+    fprintf('  c_ref (MAC)           = %.3f m\n',       c_ref);
+    fprintf('  Re_wing               = %.4e\n',          Re_wing);
+    fprintf('----------------------------------------------\n');
+    fprintf('  WING\n');
+    fprintf('  Cf (mixed+compress.)  = %.4e\n',          Cf_wing);
+    fprintf('  FF                    = %.4f\n',           FF_wing);
+    fprintf('  S_wet                 = %.2f m^2\n',       S_wet_wing);
+    fprintf('  Q                     = %.2f\n',           Q_wing);
+    fprintf('  CD0_wing              = %.5f\n',           CD0_wing);
+    fprintf('----------------------------------------------\n');
+    fprintf('  FUSELAGE\n');
+    fprintf('  L/d (fineness)        = %.2f\n',           f_ratio);
+    fprintf('  FF (Raymer 12.31)     = %.4f\n',           FF_fuse);
+    fprintf('  S_wet                 = %.2f m^2\n',       S_wet_fuse);
+    fprintf('  CD0_fuse              = %.5f\n',           CD0_fuse);
+    fprintf('----------------------------------------------\n');
+    fprintf('  NACELLES (x%d)\n',                         n_eng);
+    fprintf('  d=%.2fm  L=%.2fm\n',                       d_nac, L_nac);
+    fprintf('  FF (Raymer 12.32)     = %.4f\n',           FF_nac);
+    fprintf('  Q (wing-mounted)      = %.2f\n',           Q_nac);
+    fprintf('  CD0_nacelles          = %.5f\n',           CD0_nac);
+    fprintf('----------------------------------------------\n');
+    fprintf('  TAIL\n');
+    fprintf('  CD0_HTP               = %.5f\n',           CD0_HTP);
+    fprintf('  CD0_VTP               = %.5f\n',           CD0_VTP);
+    fprintf('  CD0_tail              = %.5f\n',           CD0_tail);
+    fprintf('----------------------------------------------\n');
+    fprintf('  CD0 subtotal          = %.5f\n',           CD0_subtotal);
+    fprintf('  CD0 misc (3%%)         = %.5f\n',           CD0_misc);
+    fprintf('----------------------------------------------\n');
+    fprintf('  CD0 TOTAL             = %.5f  <-- output\n', CD0_total);
+    fprintf('----------------------------------------------\n');
+    fprintf('  BREAKDOWN FRACTIONS\n');
+    fprintf('  Wing      %.1f%%\n', 100*CD0_wing/CD0_total);
+    fprintf('  Fuselage  %.1f%%\n', 100*CD0_fuse/CD0_total);
+    fprintf('  Nacelles  %.1f%%\n', 100*CD0_nac/CD0_total);
+    fprintf('  Tail      %.1f%%\n', 100*CD0_tail/CD0_total);
+    fprintf('  Misc      %.1f%%\n', 100*CD0_misc/CD0_total);
+    fprintf('==============================================\n\n');
+
+end

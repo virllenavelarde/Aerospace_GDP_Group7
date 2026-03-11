@@ -33,7 +33,7 @@ function TW_alt = MACS(obj, WS_SI)
         if ~isempty(obj.AeroPolar) && isprop(obj.AeroPolar,'AR') && ~isempty(obj.AeroPolar.AR)
             AR = obj.AeroPolar.AR;
         else
-            AR = 9.5;   % fallback assumption (set to your hyperparameter default)
+            AR = 10;   % fallback assumption (set to your hyperparameter default)
         end
     end
 

@@ -51,6 +51,8 @@ y_ac = fminsearch(@(y)(trapz([ys(idx),y],interp1(ys(idx:idx+1),cs(idx:idx+1),[ys
 obj.c_ac = interp1(ys,cs,y_ac);
 obj.x_ac = interp1(ys,x_qtr,y_ac);
 
+obj.MAC = obj.c_ac;   % ADD THIS -- stores MAC for CD0 to read
+
 % place aerodynamic centre at WingPos
 Xs(:,1) = Xs(:,1) + (obj.WingPos-obj.x_ac);
 obj.x_ac = obj.WingPos;

@@ -38,7 +38,7 @@ classdef ADP < handle
         Cl_max = 1.77;                 % 2D clean section Clmax (from XFOIL)
 
         % --- Wing-level lift assumptions (conceptual placeholders) ---
-        CL_max = 1.59                  %0.90*Cl_max;    % uses ADP.Cl_max=1.77  % max CL clean*** (no high-lift devices)
+        CL_max = 1.46                  %clmax*cos(sweep25)*eta-planform = 1.77*0.866*0.95 ~ 1.46
         Delta_Cl_ld = 1.0;             % extra CL during landing        --> ****REFINEMENT (2)
         Delta_Cl_to = 0.8;             % extra CL at take-off           --> ****REFINEMENT (3)
 
@@ -61,7 +61,11 @@ classdef ADP < handle
 
         CL_ceiling = 1.0;   % hyperparameter for ceiling sizing
 
-        
+        Sweep25 = 30.0; % default sweep at 25% chord, used for Michel's criterion in CD0 estimation, can be overridden by geometry if available
+
+        % Flap drag increments -- Raymer Table 12.7, triple slotted flap
+        Delta_CD0_TO = 0.015;   % ***REFINEMENT*** CD0 increment flaps TO
+        Delta_CD0_LD = 0.055;   % ***REFINEMENT*** CD0 increment flaps LD
     end
 
     %loop limit
@@ -111,6 +115,10 @@ classdef ADP < handle
         CockpitLength = 7.3;
         CabinRadius = 2.8;
         CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
+    end
+
+    properties
+        MAC;
     end
     
     methods

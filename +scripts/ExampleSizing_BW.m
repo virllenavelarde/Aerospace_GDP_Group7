@@ -1,5 +1,5 @@
 %% size an BoxWing at a Mach number of 0.85
-clear; clc;
+clear; clc; close all;
 % Instantiate an instance of the BoxWing class add define some initial
 % parameters
 ADP = B777.ADP_BW();
@@ -132,8 +132,15 @@ if ~isempty(ADP.AeroPolar)
     fprintf('CD0: %0.3f, CD (CL): %0.3f \n',ADP.AeroPolar.CD(0),ADP.AeroPolar.CD(0.5));
 end
 
-%calculate CD0 for the wing (using Michel's criterion for transition)
-ADP.CD0 = B777.CD0(ADP);    %call ADP bc ADP already = ADP_BW since the first tline   
+% returns total CD0 + full breakdown struct
+[ADP.CD0, CD0_break] = B777.CD0(ADP, B7Geom);
+polars = B777.multiPhasePolar(ADP,B7Geom);
+
+% rebuild polar with physics-based total
+B777.UpdateAero(ADP);
+
+% inspect breakdown
+fprintf('Wing fraction = %.1f%%\n', 100*CD0_break.CD0_wing/CD0_break.CD0_total);
 
 %graph aero polarar CD vs CL : Drag polarar plots
 if ~isempty(ADP.AeroPolar)
@@ -216,4 +223,5 @@ ylabel('Block Fuel [t]')
 LogBW = scripts.logPolarToStruct(ADP, "BoxWing");
 save("AeroLog_BoxWing.mat","LogBW");
 
-%% Sizing Function
+dist_BW = B777.liftDistribution(ADP);
+fprintf('BW root BM cruise = %.3e N·m\n', dist_BW.BM_cruise);
