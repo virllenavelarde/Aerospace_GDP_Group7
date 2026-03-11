@@ -42,6 +42,8 @@ classdef TLAR
 
     properties
         M_alt % Mach number at each alititude to be limited by either M_c or V_climb
+        M_TO
+        M_app
     end
 
     % alternate airport diversion properties
@@ -110,6 +112,10 @@ classdef TLAR
             obj.V_app = 145./SI.knt;    %******fixed 11/2 to match TLAR
             obj.V_ld = 140./SI.knt;   %******fixed doesnt reach approach
             obj.V_climb = 250./SI.knt;
+
+            %for phasepolar
+            obj.M_TO  = 0.25;   % ***REFINEMENT*** take-off Mach
+            obj.M_app = 0.20;   % ***REFINEMENT*** approach Mach
 
             %take off **** NOT FIXED YET (NEED TO DO) ***************************************************************
             obj.H_to_screen = 35./SI.ft;

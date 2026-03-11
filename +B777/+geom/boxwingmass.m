@@ -124,7 +124,15 @@ function [GeomObj,massObj,m_boxwing] = boxwingmass(obj)
     GeomObj(1) = cast.GeomObj(Name="Front Wing", Xs=Xs_f);
     GeomObj(2) = cast.GeomObj(Name="Rear Wing",  Xs=Xs_r);
 
-    
+    % store wetted area on the geometry object if cast.GeomObj supports extra properties
+    tc = obj.tc_ref;                            %same thickness ratio for front and rear wing, since same airfoil is used for both
+    obj.S_wet_front = 2 * Sf * (1 + 0.2*tc);  % wetted area of front wing (Raymer's method), but adds two wings wetted area together
+    obj.S_wet_rear  = 2 * Sr * (1 + 0.2*tc);
+
+    % tip fins
+    h_fin           = obj.CabinRadius;          % ~2.8 m, stagger height assumed to be half fuselage
+    c_fin           = c_tf;                     % tip chord of front wing
+    obj.S_wet_fins  = 2 * (2 * h_fin * c_fin);  % 2 fins, wetted both sides
     %% calculate mass
     % ----- compute each wing panel mass using Raymer helper -----
     w_front_lb = 0.00125*Wdg_f_lb * (b_f_ft/cosLambda)^0.75*...
@@ -163,9 +171,8 @@ function [GeomObj,massObj,m_boxwing] = boxwingmass(obj)
     % ----- add relief factor -----
     m_boxwing = k_relief*(m_wing_front + m_wing_rear+m_joint_mass_total) ;
     
-    
-
-    
+    % area-weighted MAC -- more physically correct than S/b
+    obj.MAC = alpha*c_mac_f + (1-alpha)*c_mac_r;
 end
     
 % function [S,c_t,c_r,A1,A2,A3] = get_areas(c,L2,L3,R_f,tr,SweepQtrChord)

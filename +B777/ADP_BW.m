@@ -53,7 +53,7 @@ classdef ADP_BW < handle
 
         % --- Aircraft drag polar parameters (cruise) ---
         CD0    = 0.021;                % baseline (replace later with plate build-up)
-        e      = 0.90;                 % BW effective span efficiency (use 0.88–0.95)
+        e      = 0.97;                 % refers to Wolkovitch (1986)
         CDwave = 0.001;                % wave drag increment near transonic cruise
 
         % --- Tail volume coefficients (BW defaults) ---
@@ -62,6 +62,11 @@ classdef ADP_BW < handle
 
         % --- Ceiling sizing knob ---
         CL_ceiling = 1.0;
+        Sweep25 = 30.0; % default sweep at 25% chord, used for Michel's criterion in CD0 estimation, can be overridden by geometry if available
+
+        % Flap drag increments -- Raymer Table 12.7, triple slotted flap
+        Delta_CD0_TO = 0.015;   % ***REFINEMENT*** CD0 increment flaps TO
+        Delta_CD0_LD = 0.055;   % ***REFINEMENT*** CD0 increment flaps LD
     end
 
     % Sizing Flags (whether to Adjust certain values during sizing process)
@@ -122,6 +127,10 @@ classdef ADP_BW < handle
     properties  %wing geometry
         FrontWingPos =  0.4*63.7;
         RearWingPos = 0.7*63.7;
+        S_wet_front; %wetted area of front wing, stored from boxwingmass.m
+        S_wet_rear;  %wetted area of rear wing, stored from boxwingmass.m
+        S_wet_fins;  %wetted area of tip fins, stored from boxwingmass.m
+        MAC;         % mean aerodynamic chord, stored from boxwingmass.m
     end
 
     methods

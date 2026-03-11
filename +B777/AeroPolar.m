@@ -37,33 +37,27 @@ classdef AeroPolar
     % end
 
     methods
-        function obj = AeroPolar(ADP)
-            if isprop(ADP,'etaLift'); obj.etaLift = ADP.etaLift; end %impose eta
+    function obj = AeroPolar(ADP)
+        % etaLift is lift split (front/rear wing) -- NOT an induced drag factor
+        % induced drag benefit for BoxWing comes from higher e in ADP_BW
 
-            obj.AR = ADP.Span^2 / ADP.WingArea;
+        obj.AR = ADP.Span^2 / ADP.WingArea;
 
-            %from ADP
-            obj.CD0 = ADP.CD0;
-            obj.e = ADP.e;
-            obj.CDwave = ADP.CDwave;
+        % from ADP
+        obj.CD0    = ADP.CD0;
+        obj.e      = ADP.e;
+        obj.CDwave = ADP.CDwave;
 
-            obj.Beta = 1/(pi*obj.AR*obj.e); %essentially K factor (1/piARe)
-        end
-
-        function CD = CD(obj,CL) %CD0 + CL^2/piARe+CDwave
-        % Base induced factor
-        Beta_eff = obj.Beta;
-        % ------------------- BoxWing induced benefit -------------------
-        % If ADP passed an etaLift knob (0..1), reduce induced drag accordingly.
-        % etaLift ~ "fractional induced reduction benefit" (conceptual).
-        % Example: etaLift = 0.2 => 20% less induced drag term.
-        if isprop(obj,'etaLift') && ~isempty(obj.etaLift) && isfinite(obj.etaLift)
-            eta = min(max(obj.etaLift,0),0.6);   % clamp to avoid crazy benefit
-            Beta_eff = (1-eta) * obj.Beta;
-        end
-        CD = obj.CD0 + Beta_eff .* CL.^2 + obj.CDwave;
-        end
+        obj.Beta = 1/(pi*obj.AR*obj.e);   % K factor = 1/(pi*AR*e)
     end
+
+    function CD = CD(obj, CL)
+        % standard parabolic polar
+        % CD = CD0 + K*CL^2 + CDwave
+        % BoxWing benefit is captured by higher e in ADP_BW (e=0.95 vs e=0.85)
+        CD = obj.CD0 + obj.Beta .* CL.^2 + obj.CDwave;
+    end
+end
 end
 
 

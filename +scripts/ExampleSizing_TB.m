@@ -1,6 +1,6 @@
-% scripts/TestSizing_Aero.m  (SCRIPT)
+% scripts/ExampleSizing_TB.m
 
-clear; clc;
+clear; clc; close all;
 
 ADP = B777.ADP();   %calling class ADP
 ADP.TLAR = cast.TLAR.TubeWing();    %change here bc obj. is defined in TLAR (cast)
@@ -22,10 +22,21 @@ ADP.VtpPos  = 0.82*Lf;
 % --- Initial MTOM seed for the iteration ---
 ADP.MTOM = 3.3 * ADP.TLAR.Payload;      % kg (seed)
 
-
-
 % --- Run iterative sizing (this finds MTOM) ---
 ADP = B777.size(ADP);
+
+% TubeWing uses BuildGeometry not BuildGeometry_BW
+figure(1); clf;
+img = imread('B777F_planform.png');
+imshow(img, 'XData', [0 63.7], 'YData', [-64.8 64.8]/2);
+
+[B7Geom, B7Mass] = B777.BuildGeometry(ADP);
+cast.draw(B7Geom, B7Mass)
+ax = gca;
+ax.XAxis.Visible = "on";
+ax.YAxis.Visible = "on";
+axis equal
+ylim([-0.5 0.5]*ADP.Span)
 
 %debug sesh
 fprintf("\n--- UNIT CHECK ---\n");
@@ -61,8 +72,17 @@ fprintf("WingArea: %.1f m^2\n", ADP.WingArea);
 fprintf("Span: %.1f m\n", ADP.Span);
 fprintf("T/W: %.3f\n", ADP.ThrustToWeightRatio);
 
-%calculate CD0 for the wing (using Michel's criterion for transition)
-ADP.CD0 = B777.CD0(ADP);   
+% returns total CD0 + full breakdown struct
+[ADP.CD0, CD0_break] = B777.CD0(ADP);
+polars = B777.multiPhasePolar(ADP);
+
+% rebuild polar with physics-based total
+B777.UpdateAero(ADP);
+
+[BlockFuel, TripFuel, ResFuel, Mf_TOC, MissionTime] = B777.MissionAnalysis(ADP, ADP.TLAR.Range, ADP.MTOM);
+
+% inspect breakdown
+fprintf('Wing fraction = %.1f%%\n', 100*CD0_break.CD0_wing/CD0_break.CD0_total);
 
 % AeroPolar may exist only if UpdateAero builds it
 if ~isempty(ADP.AeroPolar)
@@ -123,4 +143,31 @@ if ~isempty(ADP.AeroPolar)
 
     LogTW = scripts.logPolarToStruct(ADP, "TubeWing");
     save("AeroLog_TubeWing.mat","LogTW");   % writes file to cwd
+
+    %span study
+    Spans = 50:5:100;
+    mtoms = Spans*0;
+    fuels = mtoms;
+    ADP0 = ADP;
+
+    for i = 1:length(Spans)
+        ADPi = ADP0;
+        ADPi.Span = Spans(i);
+        ADPi = B777.size(ADPi);
+        mtoms(i) = ADPi.MTOM;
+        fuels(i) = ADPi.Mf_Fuel * ADPi.MTOM;
+    end
+
+    figure(2); clf;
+    tt = tiledlayout(2,1);
+    nexttile(1);
+    plot(Spans, mtoms/1e3, '-s')
+    xlabel('Span [m]'); ylabel('MTOM [t]')
+
+    nexttile(2);
+    plot(Spans, fuels/1e3, '-o')
+    xlabel('Span [m]'); ylabel('Block Fuel [t]')
 end
+
+dist_TW = B777.liftDistribution(ADP);
+fprintf('TW root BM cruise = %.3e N·m\n', dist_TW.BM_cruise);
