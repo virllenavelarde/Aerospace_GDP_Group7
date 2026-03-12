@@ -16,7 +16,7 @@ function engine_code_analysis()
     eng_sfc_b = 0.48e-5;          
 
     % Mission 
-    range_km = 10131.99;        
+    range_km = 10132;        
     alt_m = 10668;                
     mach = 0.80;                  
 
