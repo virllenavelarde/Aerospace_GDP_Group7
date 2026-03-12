@@ -1,4 +1,4 @@
-function boxwing_integrated_analysis()
+function engine_code_analysis()
     % Global Parameters
     m_tom = 327503.3;             
     m_oew = 129000;               
@@ -61,17 +61,28 @@ function boxwing_integrated_analysis()
 
     total_fuel_burn = (w0 - w4) / g;
 
-    % Climate Impact
+    % Climate Impact 
     ei_co2 = 3.16;
-    ei_nox = 15;
-    a_co2 = 1.01e-15;
-    a_nox = 5.16e-13;
+    ei_h2o = 1.26;         
+    ei_nox = 16.2;         
+    ei_so4 = 0.2;       
+    ei_soot = 0.04;         
+
+    % ATR100 Factors 
+    a_co2      = 1.01e-15;
+    a_nox_o3s  = 5.16e-13;  % short influence
+    a_nox_o3l  = -1.21e-13; % long influence
+    a_h2o      = 2.40e-15;
+    a_contrail = 1.10e-14; 
 
     m_co2 = total_fuel_burn * ei_co2;
     m_nox = (total_fuel_burn / 1000) * ei_nox;
-    atr100_co2 = m_co2 * a_co2;
-    atr100_nox = m_nox * a_nox;
-    atr100_total = atr100_co2 + atr100_nox;
+    m_h2o = total_fuel_burn * ei_h2o;
+    atr100_co2      = m_co2 * a_co2;
+    atr100_nox      = m_nox * (a_nox_o3s + a_nox_o3l); 
+    atr100_h2o      = m_h2o * a_h2o;
+    atr100_contrail = range_nm * a_contrail; 
+    atr100_total = atr100_co2 + atr100_nox + atr100_h2o + atr100_contrail;
 
     % Propulsion Scaling
     t_ref = 374500;
@@ -113,9 +124,12 @@ function boxwing_integrated_analysis()
     fprintf('  Total Mission Fuel:   %.2f kg\n', total_fuel_burn);
     fprintf('CLIMATE IMPACT:\n');
     fprintf('  CO2 Mass: %.2f kg | NOx Mass: %.2f kg\n', m_co2, m_nox);
+    fprintf('  H2O Mass: %.2f kg\n', m_h2o);
+    fprintf('  ATR100 Breakdown: CO2=%.2e, NOx=%.2e, H2O=%.2e, Contrails=%.2e\n', ...
+            atr100_co2, atr100_nox, atr100_h2o, atr100_contrail);
     fprintf('  ATR100 Total: %.4e K\n', atr100_total);
     fprintf('PROPULSION SCALING:\n');
-    fprintf('  Required Thrust/Eng: %.2f kN (SF: %.4f)\n', t_req_per_eng/1000, sf);
+    fprintf('  Required Thrust/Eng: %.2f kN\n', t_req_per_eng/1000);
     fprintf('  Total Propulsion System Mass: %.2f kg\n', w_propulsion * 2);
     fprintf('  Dimensions: L = %.2f m, D = %.2f m\n', l_eng_scaled, d_eng_scaled);
     fprintf('OEI VERIFICATION:\n');
