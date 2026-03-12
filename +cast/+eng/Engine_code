@@ -16,11 +16,10 @@ function engine_code_analysis()
     eng_sfc_b = 0.48e-5;          
 
     % Mission 
-    range_nm = 5470.84;           
-    alt_ft = 35000;               
+    range_km = 10131.99;        
+    alt_m = 10668;                
     mach = 0.80;                  
 
-    alt_m = alt_ft * 0.3048;      
     [T_cruise, a_cruise, p_cruise, rho_cruise] = atmosisa(alt_m);
     [T_sl, a_sl, p_sl, rho_sl] = atmosisa(0);
     
@@ -49,7 +48,7 @@ function engine_code_analysis()
     % TSFC Refined for Altitude & Mach
     sfc_cruise = (eng_sfc_a + eng_sfc_b * mach) * sqrt(theta);
     
-    range_m = range_nm * 1852;
+    range_m = range_km * 1000;
     weight_ratio = exp((range_m * g * sfc_cruise) / (v_cruise * ld_cruise));
     w3 = w_start_cruise / weight_ratio;
     fuel_cruise = (w_start_cruise - w3) / g;
@@ -70,18 +69,20 @@ function engine_code_analysis()
 
     % ATR100 Factors 
     a_co2      = 1.01e-15;
-    a_nox_o3s  = 5.16e-13;  % short influence
-    a_nox_o3l  = -1.21e-13; % long influence
+    a_nox_o3s  = 5.16e-13;  
+    a_nox_o3l  = -1.21e-13; 
     a_h2o      = 2.40e-15;
-    a_contrail = 1.10e-14; 
+    a_contrail_km = 1.10e-14 / 1.852; 
 
     m_co2 = total_fuel_burn * ei_co2;
     m_nox = (total_fuel_burn / 1000) * ei_nox;
     m_h2o = total_fuel_burn * ei_h2o;
+
     atr100_co2      = m_co2 * a_co2;
     atr100_nox      = m_nox * (a_nox_o3s + a_nox_o3l); 
     atr100_h2o      = m_h2o * a_h2o;
-    atr100_contrail = range_nm * a_contrail; 
+    atr100_contrail = range_km * a_contrail_km; 
+    
     atr100_total = atr100_co2 + atr100_nox + atr100_h2o + atr100_contrail;
 
     % Propulsion Scaling
@@ -113,26 +114,19 @@ function engine_code_analysis()
     sigma_oei = ( ((m_tom * g) / ld_cruise_fixed) / t_oei )^(1 / 0.7);
 
     % Result
-    fprintf('MISSION PERFORMANCE:\n');
-    fprintf('  Range: %.2f nm | Cruise: %d ft (M%.2f)\n', range_nm, alt_ft, mach);
+    fprintf('MISSION PERFORMANCE (Metric Units):\n');
+    fprintf('  Range: %.2f km | Cruise: %d m (M%.2f)\n', range_km, alt_m, mach);
     fprintf('  Initial Cruise L/D: %.2f\n', ld_cruise);
-    fprintf('  Refined TSFC: %.4e kg/N/s (Alt/Mach Adjusted)\n', sfc_cruise);
-    fprintf('  Fuel Burn - Takeoff:  %.2f kg\n', fuel_to);
-    fprintf('  Fuel Burn - Climb:    %.2f kg\n', fuel_climb);
-    fprintf('  Fuel Burn - Cruise:   %.2f kg\n', fuel_cruise);
-    fprintf('  Fuel Burn - Approach: %.2f kg\n', fuel_app);
-    fprintf('  Total Mission Fuel:   %.2f kg\n', total_fuel_burn);
+    fprintf('  Refined TSFC: %.4e kg/N/s\n', sfc_cruise);
+    fprintf('  Total Mission Fuel: %.2f kg\n', total_fuel_burn);
     fprintf('CLIMATE IMPACT:\n');
     fprintf('  CO2 Mass: %.2f kg | NOx Mass: %.2f kg\n', m_co2, m_nox);
-    fprintf('  H2O Mass: %.2f kg\n', m_h2o);
     fprintf('  ATR100 Breakdown: CO2=%.2e, NOx=%.2e, H2O=%.2e, Contrails=%.2e\n', ...
             atr100_co2, atr100_nox, atr100_h2o, atr100_contrail);
     fprintf('  ATR100 Total: %.4e K\n', atr100_total);
     fprintf('PROPULSION SCALING:\n');
     fprintf('  Required Thrust/Eng: %.2f kN\n', t_req_per_eng/1000);
     fprintf('  Total Propulsion System Mass: %.2f kg\n', w_propulsion * 2);
-    fprintf('  Dimensions: L = %.2f m, D = %.2f m\n', l_eng_scaled, d_eng_scaled);
     fprintf('OEI VERIFICATION:\n');
-    fprintf('  Take-off Gradient: %.4f (%.2f%%)\n', gamma_oei, gamma_oei * 100);
-    fprintf('  Required Density Ratio: %.4f\n', sigma_oei);
+    fprintf('  Take-off Gradient: %.2f%%\n', gamma_oei * 100);
 end
