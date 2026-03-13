@@ -64,14 +64,19 @@ classdef beamproperties
             % divide by 2 for one wing / half span
             halfspan_load = safe_total_weight / 2;
 
-            % area under triangular load = halfspan load
-            height_of_triangle = (2 * halfspan_load) / obj.beamlength;
+             % area under triangular load = halfspan load
+            obj.intercept = (2 * halfspan_load) / obj.beamlength; %note that then height is also the y intercept 
 
             %equation of the triangdistrload: 
-            obj.gradient = -height_of_triangle/obj.beamlength; %this equation only works if the TDL is over the whole half span (which it is in this case)
+            obj.gradient = -obj.intercept/obj.beamlength; %this equation only works if the TDL is over the whole half span (which it is in this case)
 
             %area of triangle represents the 'effective' force 
             obj.effective_triangular_force = 0.5*height_of_triangle*obj.beamlength;
+
+            %the point at which this force acts: 1/3 from the root of beam or cut
+            obj.x_effective_force = obj.beamlength / 3; 
+            
+            obj.load_factor = n;
         end
 
         function obj = reaction_shear(obj, Rt, x_Rt)
@@ -79,8 +84,92 @@ classdef beamproperties
             obj.x_Rt = x_Rt;
             obj.S_r =  Rt - obj.effective_triangular_force;
         end 
+        %this function shows the tip force that is used to represent the coupled deflection between the top and bottom wing tips.
+        function obj = setTipForce(obj, Rt, Rt_sign)
+            obj.Rt = Rt;
+            obj.Rt_sign = Rt_sign;
+        end
 
+        %this funciton calcultes the reaciton shear and moment
+        function obj = reactionLoads(obj)
+            obj.S_r = obj.effective_triangular_force + obj.Rt_sign * obj.Rt;
+            obj.M_r = obj.effective_triangular_force * obj.x_effective_force + ...
+                      obj.Rt_sign * obj.Rt * obj.beamlength;
+        end
+        
 
+        %when a cut is taken it will take that x value and put into the
+        %triangular load equation to calculate the highest load value in
+        %that triangular distributed load
+        function w = loadAt(obj, x)
+            w = obj.gradient .* x + obj.intercept;
+        end
+        
+
+        %this calculates the area of the triangle that remains after the
+        %cut
+        function Ftri = remainingTriangularForce(obj, x)
+            Lr = obj.beamlength - x;
+            wc = obj.loadAt(x);
+            Ftri = 0.5 .* wc .* Lr;
+        end
+        
+        %calcultes the point at which the cut triangular distributed
+        %force's effective force acts
+        function xbar = remainingTriangularCentroid(obj, x)
+            xbar = (obj.beamlength - x) ./ 3;
+        end
+        
+
+        % Calcultes shear equation of the cut section
+        function S = shearAt(obj, x)
+            Ftri = obj.remainingTriangularForce(x);
+            S = Ftri + obj.Rt_sign * obj.Rt;
+        end
+        
+
+        % Calcultes moment equation of the cut section
+        function M = momentAt(obj, x)
+            Ftri = obj.remainingTriangularForce(x);
+            xbar = obj.remainingTriangularCentroid(x);
+            Lr = obj.beamlength - x;
+            M = Ftri .* xbar + obj.Rt_sign * obj.Rt .* Lr;
+        end
+
+        function delta_tri = tipDeflectionTriangular(obj)
+            delta_tri = obj.intercept * obj.beamlength^4 / (30 * obj.E * obj.I);
+        end
+
+        function delta_tip = tipDeflectionTipForce(obj)
+            delta_tip = obj.Rt_sign * obj.Rt * obj.beamlength^3 / (3 * obj.E * obj.I);
+        end
+
+        function delta_total = tipDeflectionTotal(obj)
+            delta_total = obj.tipDeflectionTriangular() + obj.tipDeflectionTipForce();
+        end
+
+        function [x, S, M] = diagrams(obj, npts)
+            if nargin < 2
+                npts = 200;
+            end
+            x = linspace(0, obj.beamlength, npts);
+            S = arrayfun(@(xx) obj.shearAt(xx), x);
+            M = arrayfun(@(xx) obj.momentAt(xx), x);
+        end
+
+        function printSummary(obj)
+            fprintf('\n--- %s beam ---\n', obj.name);
+            fprintf('Half-span L              = %.3f m\n', obj.beamlength);
+            fprintf('Load factor n            = %.3f\n', obj.load_factor);
+            fprintf('Lift split               = %.3f\n', obj.lift_split);
+            fprintf('w0 at root               = %.3f kN/m\n', obj.intercept / 1000);
+            fprintf('Gradient                 = %.6f kN/m^2\n', obj.gradient / 1000);
+            fprintf('Equivalent triangular F  = %.3f MN\n', obj.effective_triangular_force / 1e6);
+            fprintf('Rt on beam               = %.3f MN\n', obj.Rt / 1e6);
+            fprintf('Root shear S_r           = %.3f MN\n', obj.S_r / 1e6);
+            fprintf('Root moment M_r          = %.3f MNm\n', obj.M_r / 1e6);
+            fprintf('Tip deflection           = %.4f m\n', obj.tipDeflectionTotal());
+        end
 
     end
 end
