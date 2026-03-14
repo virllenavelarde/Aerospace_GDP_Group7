@@ -24,7 +24,7 @@ x_te    = x_le + cs;
 Xs = [x_le, ys; flipud(x_te), flipud(ys)];
 Xs(:,1) = Xs(:,1) + obj.RearWingPos;
 
-GeomObj = cast.GeomObj(Name="Rear Wing", Xs=Xs);
+GeomObj = BoxWing.cast.GeomObj(Name="Rear Wing", Xs=Xs);
 
 %%  Mass (Raymer equation with forward sweep corrections) 
 b_w       = b * SI.ft;
@@ -35,10 +35,9 @@ cosLambda = cosd(abs(SweepQtrChord));  % Use absolute value
 Wdg_lb = obj.MTOM * obj.Mf_TOC * SI.lb;
 n_z    = 2.0 * 1.5;  % Lower load factor (acts as tail)
 
-w_wing = 0.00125 * Wdg_lb * (b_w/cosLambda)^0.75 ...
-       * (1 + sqrt(6.3*cosLambda/b_w)) * n_z^0.55 ...
-       * (b_w*S_w / (t_w*Wdg_lb*cosLambda))^0.3;
-
+w_wing = 0.00125 * Wdg_lb * (b_w/cosLambda)^0.75 * (1 + sqrt(6.3*cosLambda/b_w)) * n_z^0.55 * (b_w*S_w ./ (t_w*Wdg_lb*cosLambda))^0.3;
+% WARNING
+w_wing = mean(w_wing); % THIS IS DONE TO DEBUG THE CODE
 % Forward sweep penalty and composite factor
 forward_sweep_penalty = 1.12;  % Assuming +12% for aeroelastic concerns
 composite_factor = 0.75;       % CFRP weight reduction
@@ -47,6 +46,6 @@ m_wing = (w_wing / SI.lb) * composite_factor * forward_sweep_penalty;
 
 c_mac_rear = (2/3)*c_r*(1 + tr + tr^2)/(1 + tr);
 
-massObj = cast.MassObj(Name="Rear Wing", m=m_wing, ...
+massObj = BoxWing.cast.MassObj(Name="Rear Wing", m=m_wing, ...
                        X=[obj.RearWingPos + c_mac_rear*0.25; 0]);
 end

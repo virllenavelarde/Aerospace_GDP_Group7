@@ -4,7 +4,7 @@ function [GeomObj,massObj] = engine(obj)
 
 % Ensure baseline engine exists (geometry + TSFC model)
 if isempty(obj.Engine)
-    obj.Engine = cast.eng.TurboFan.CFM_LEAP_1A(1, obj.TLAR.Alt_cruise, obj.TLAR.M_c);   %from YUke
+    obj.Engine = BoxWing.cast.eng.TurboFan.CFM_LEAP_1A(1, obj.TLAR.Alt_cruise, obj.TLAR.M_c);   %from YUke
 end
 
 Eng0 = obj.Engine;  % keep original geometry fields
@@ -26,8 +26,8 @@ D = obj.Engine.Diameter;
 Xs = Xs .* repmat([L D], size(Xs,1), 1);
 
 offsetEng = [obj.x_ac - obj.c_ac*0.6, obj.CabinRadius + 1.75*D];
-GeomObj = cast.GeomObj(Name="EngineRight", Xs = Xs + offsetEng);
-GeomObj(2) = cast.GeomObj(Name="EngineLeft", Xs = Xs + offsetEng.*[1 -1]);
+GeomObj = BoxWing.cast.GeomObj(Name="EngineRight", Xs = Xs + offsetEng);
+GeomObj(2) = BoxWing.cast.GeomObj(Name="EngineLeft", Xs = Xs + offsetEng.*[1 -1]);
 
 % ------------------------- Create Mass Objects --------------------------
 mEng = obj.Engine.Mass;
@@ -41,8 +41,8 @@ m_engi = m_engi(1);
 
 offsetPylon = offsetEng + [L/2, 0];
 
-massObj         = cast.MassObj(Name="Engine Right",       m=mEng,  X=offsetEng);
-massObj(end+1)  = cast.MassObj(Name="Engine Pylon Right", m=m_engi, X=offsetPylon);
-massObj(end+1)  = cast.MassObj(Name="Engine Left",        m=mEng,  X=offsetEng.*[1 -1]);
-massObj(end+1)  = cast.MassObj(Name="Engine Pylon Left",  m=m_engi, X=offsetPylon.*[1 -1]);
+massObj         = BoxWing.cast.MassObj(Name="Engine Right",       m=mEng,  X=offsetEng);
+massObj(end+1)  = BoxWing.cast.MassObj(Name="Engine Pylon Right", m=m_engi, X=offsetPylon);
+massObj(end+1)  = BoxWing.cast.MassObj(Name="Engine Left",        m=mEng,  X=offsetEng.*[1 -1]);
+massObj(end+1)  = BoxWing.cast.MassObj(Name="Engine Pylon Left",  m=m_engi, X=offsetPylon.*[1 -1]);
 end

@@ -10,32 +10,37 @@ end
 GeomObj = struct.empty;
 massObj = struct.empty;
 
-components = ["frontwing","rearwing","verticalconnector", ...
-              "verticaltail","fuselage","engine","landingGear"];
+components = ["landingGear", "verticalconnector", "rearwing", "frontwing", ...
+              "verticaltail","fuselage","engine"];
              
 
-for i = 1:length(components)
-    [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
-    GeomObj = [GeomObj, gTmp];
-    massObj = [massObj, mTmp];
-end
+%or i = 1:length(components)
+%    [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
+%    GeomObj = [GeomObj, gTmp];
+%    massObj = [massObj, mTmp];
+%end
 
 
 % This is to make the aircraft nose heavy 
 % Ballast for CG control
 m_ballast = 0;  % kg (3 tonnes)
 x_ballast = 3.0;   % m (nose gear bay)
-massObj(end+1) = cast.MassObj(Name="Ballast", m=m_ballast, X=[x_ballast; 0]);
+massObj(end+1) = BoxWing.cast.MassObj(Name="Ballast", m=m_ballast, X=[x_ballast; 0]);
 
 %% Fuel: 60% front wing, 40% rear wing and we can chnage this according to the CG
 fuel = obj.MTOM * obj.Mf_Fuel * opts.FuelFraction;
-massObj(end+1) = cast.MassObj(Name="Fuel Front Wing", ...
+% WARNING
+fuel = mean(fuel); % ASSUMPTION TO DEBBUG CODE
+massObj(end+1) = BoxWing.cast.MassObj(Name="Fuel Front Wing", ...
     m=fuel*0.80, X=[obj.FrontWingPos + obj.c_ac*0.15; 0]);
-massObj(end+1) = cast.MassObj(Name="Fuel Rear Wing", ...
+massObj(end+1) = BoxWing.cast.MassObj(Name="Fuel Rear Wing", ...
     m=fuel*0.20, X=[obj.RearWingPos  + 2.0; 0]);
 
 %% Payload
-massObj(end+1) = cast.MassObj(Name="Payload", ...
-    m=obj.TLAR.Payload * opts.PayloadFraction, ...
+m_payload = obj.TLAR.Payload * opts.PayloadFraction;
+% WARNING
+m_payload = mean(m_payload); % ASSUMPTION TO DEBBUG CODE
+massObj(end+1) = BoxWing.cast.MassObj(Name="Payload", ...
+    m=m_payload, ...
     X=[obj.CockpitLength + obj.CabinLength*0.50; 0]);
 end

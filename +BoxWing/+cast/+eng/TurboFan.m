@@ -35,14 +35,14 @@ classdef TurboFan
             obj.BPR        = BPR;
 
             obj.SFC_A = obj.SFC_TO;
-            T  = cast.atmosT(alt_cruise);
-            T0 = cast.atmosT(0);
-            obj.SFC_B = (obj.SFC_cruise / sqrt(T/T0) - obj.SFC_A) / M_cruise;
+            T  = BoxWing.cast.atmosT(alt_cruise);
+            T0 = BoxWing.cast.atmosT(0);
+            obj.SFC_B = (obj.SFC_cruise ./ sqrt(T/T0) - obj.SFC_A) / M_cruise;
         end
 
         function eng_new = Rubberise(obj, T_new)
             f = T_new / obj.T_Static;
-            eng_new = cast.eng.TurboFan(T_new, ...
+            eng_new = BoxWing.cast.eng.TurboFan(T_new, ...
                 obj.Length   * f^0.4, ...
                 obj.Diameter * f^0.5, ...
                 obj.Mass     * f^1.1, ...
@@ -52,8 +52,8 @@ classdef TurboFan
         end
 
         function TSFC = TSFC(obj, M, alt)
-            T  = cast.atmosT(alt);
-            T0 = cast.atmosT(0);
+            T  = BoxWing.cast.atmosT(alt);
+            T0 = BoxWing.cast.atmosT(0);
             TSFC = (obj.SFC_A + obj.SFC_B .* M) .* sqrt(T ./ T0);
         end
     end
@@ -69,7 +69,7 @@ classdef TurboFan
             BPR        = 9.6;
             SFC_T0     = 19*exp(-0.12*BPR)*1e-6 * sfc_scaling;
             SFC_cruise = 25*exp(-0.05*BPR)*1e-6 * sfc_scaling;
-            obj = cast.eng.TurboFan(143050,3.328,2.4,3008, ...
+            obj = BoxWing.cast.eng.TurboFan(143050,3.328,2.4,3008, ...
                                     SFC_T0,SFC_cruise,BPR,alt_cruise,M_cruise);
         end
 
@@ -82,13 +82,13 @@ classdef TurboFan
             BPR        = 8.5;
             SFC_T0     = 19*exp(-0.12*BPR)*1e-6 * sfc_scaling;
             SFC_cruise = 25*exp(-0.05*BPR)*1e-6 * sfc_scaling;
-            obj = cast.eng.TurboFan(513e3,7.28,3.85,8762, ...
+            obj = BoxWing.cast.eng.TurboFan(513e3,7.28,3.85,8762, ...
                                     SFC_T0,SFC_cruise,BPR,alt_cruise,M_cruise);
         end
 
         function obj = CFM56_5()
             f   = 1 ./ (SI.lb/(SI.lbf*SI.hr));
-            obj = cast.eng.TurboFan(107e3,2.422,2.00,2331, ...
+            obj = BoxWing.cast.eng.TurboFan(107e3,2.422,2.00,2331, ...
                                     0.3316*f, 0.596*f, 6);
         end
 
@@ -104,7 +104,7 @@ classdef TurboFan
             SFC_T0     = 18*exp(-0.12*BPR)*1e-6 * sfc_scaling;
             SFC_cruise = 22*exp(-0.05*BPR)*1e-6 * sfc_scaling;
             % Physical specs scaled for 319 t aircraft
-            obj = cast.eng.TurboFan(380e3, 6.5, 4.5, 6500, ...
+            obj = BoxWing.cast.eng.TurboFan(380e3, 6.5, 4.5, 6500, ...
                                     SFC_T0, SFC_cruise, BPR, ...
                                     alt_cruise, M_cruise);
         end

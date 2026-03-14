@@ -20,10 +20,10 @@ Xs = [x_tail_root, 0;
       x_tail_root + c_r_vt + tand(sweep_LE)*b_vt - c_t_vt, b_vt/10;
       x_tail_root + tand(sweep_LE)*b_vt, b_vt/10];
 
-GeomObj = cast.GeomObj(Name="Vertical Tail", Xs=Xs);
+GeomObj = BoxWing.cast.GeomObj(Name="Vertical Tail", Xs=Xs);
 
 %%  Mass (Raymer VTP equation) 
-[rho, a] = cast.atmos(obj.TLAR.Alt_cruise);
+[rho, a] = BoxWing.cast.atmos(obj.TLAR.Alt_cruise);
 q_c = 0.5 * rho * (obj.TLAR.M_c * a)^2;
 
 M_dg = obj.MTOM * obj.Mf_TOC * SI.lb;
@@ -43,9 +43,10 @@ composite_factor = 0.70;  % CFRP
 integration_factor = 0.95;  % Integrated with rear wing
 
 m_vt = (m_vt / SI.lb) * composite_factor * integration_factor;
-
+% WARNING
+m_vt = mean(m_vt);  % ASSUMPTION MADE TO DEBUG
 % CG location
 x_cg = x_tail_root + c_r_vt*0.42 + tand(sweep_LE)*b_vt*0.40;
 
-massObj = cast.MassObj(Name="Vertical Tail", m=m_vt, X=[x_cg; 0]);
+massObj = BoxWing.cast.MassObj(Name="Vertical Tail", m=m_vt, X=[x_cg; 0]);
 end

@@ -10,7 +10,7 @@ classdef MassObj
     methods
         function obj = MassObj(opts)
             arguments
-                opts.?cast.MassObj
+                opts.?BoxWing.cast.MassObj
             end
             for prop = string(fieldnames(opts))'
                 obj.(prop) = opts.(prop);
