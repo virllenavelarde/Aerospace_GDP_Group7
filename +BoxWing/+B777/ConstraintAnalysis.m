@@ -1,118 +1,37 @@
-%function [ThrustToWeightRatio,WingLoading] = ConstraintAnalysis(obj)
+function [TW_SLS, WS] = ConstraintAnalysis(obj)
+%Constraint analysis Wing loading and SLS thrust-to-weight for boxwing.
+%
+%  W/S is computed from the landing stall-speed constraint:
+%    V_stall_land = V_app / 1.3     (FAR 25 approach = 1.3 * Vs)
+%    WS_land = 0.5*rho_sl*Vs^2*CL_max_land   (at MLW)
+%    WS_MTOW = WS_land / Mf_Ldg              (scale to MTOW)
+%    Clamp to 6000-8500 N/m^2  (real freighter range) this are assumption
+%    and internet values 
+%
+%  T/W is from cruise drag, corrected to sea-level-static via lapse model.
 
-%% estimate T/W and W/S from constraint analysis
-% for now just setting to those of B777
+%% Wing loading
+rho_sl  = 1.225;
+V_app   = obj.TLAR.V_app;           % approach speed [m/s]
+V_stall = V_app / 1.30;             
+CL_land = 2.8;                      % CL_max with landing flaps
 
-%refer to cork 54/406
-%first estimation
+WS_land = 0.5 * rho_sl * V_stall^2 * CL_land;   % [N/m^2] at MLW
+WS      = WS_land / obj.Mf_Ldg;                  % [N/m^2] at MTOW
 
+% Clamp to realistic range for wide-body freighters:
+%   A350F ~ 7000 N/m^2,  B777F ~ 6700 N/m^2
+WS = max(6000, min(WS, 8500)); % assumption
 
-% ---------------------- TODO -----------------------
-% --------- update with constraint analysis ---------
-%obj.ThrustToWeightRatio = (513e3*2)/(347815*9.81);
-%obj.WingLoading = (347815*9.81)/(473.3*cosd(31.6));
-% obj.WingLoading = (347815*9.81)/436.8;
+%% Thrust-to-weight (cruise, then converted to SLS)
+[rho_c, a_c] = BoxWing.cast.atmos(obj.TLAR.Alt_cruise);
+q_c    = 0.5 * rho_c * (obj.TLAR.M_c * a_c)^2;
+CL_c   = WS / q_c;
+CD_c   = obj.CD0 + CL_c^2 / (pi * obj.e * obj.AR());
+TW_cr  = (q_c * CD_c / WS) * 1.10;   % cruise T/W + 10% margin
 
-% set Wing Area and Thrust
-%SweepQtrChord = real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c)); % quarter chord sweep angle
-%obj.WingArea = obj.MTOM*9.81/obj.WingLoading/cosd(SweepQtrChord);
-%obj.Thrust = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
+% Turbofan thrust lapse: T/T_SLS ~ (rho/rho_sl)^0.75
+lapse_ratio = (rho_c / rho_sl)^0.75;
+TW_SLS = TW_cr / lapse_ratio;
 
-
-%end
-
-function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj)
-% ConstraintAnalysis  Builds (for now) the TOFL constraint curve and picks a
-% preliminary design point.
-
-    % ---- Wing loading grid (SI: N/m^2) ----
-    WS = linspace(4000, 9000, 300); %
-    WS = WS(:).'; % make column vector for consistency
-
-    % ---- Call take-off constraint (returns T/W curve) ----
-    TW_to = toRow(B777.geom.subconstraint.TOL(obj, WS), numel(WS), 'TOL');
-    TW_roc = toRow(B777.geom.subconstraint.ROC(obj, WS), numel(WS), 'ROC');
-    TW_tocg = toRow(B777.geom.subconstraint.TOCG(obj, WS), numel(WS), 'TOCG');
-    TW_macs = toRow(B777.geom.subconstraint.MACS(obj, WS), numel(WS), 'MACS');
-
-    %envelope
-    TW_env = max([TW_to; TW_roc; TW_tocg; TW_macs], [], 1); %take max across constraints for each W/S
-
-    %vertical (each MUST become scalar lb/ft^2)
-    WSmax_lfl      = B777.geom.subconstraint.LFL(obj);      WSmax_lfl      = min(WSmax_lfl(:));
-    WSmax_approach = B777.geom.subconstraint.Approach(obj); WSmax_approach = min(WSmax_approach(:));
-    WSmax_ceiling  = B777.geom.subconstraint.Ceiling(obj);  WSmax_ceiling  = min(WSmax_ceiling(:));
-
-    WSmax_all = min([WSmax_lfl, WSmax_approach, WSmax_ceiling]);  % <-- scalar
-
-    %feasible region
-    feasible = (WS .* SI.lbft) <= WSmax_all;   % 1xN <= scalar
-    TW_env_feas = TW_env; 
-    TW_env_feas(~feasible) = NaN; %mask infeasible points for plotting
-
-    % ---- preliminary design point ----
-    WS_target_lbft2 = 0.9 *WSmax_all;  % 90% of alloable WS
-    WS_target = WS_target_lbft2 / SI.lbft; % convert to SI for interpolation
-
-    TW_target = interp1(WS, TW_env_feas, WS_target, 'linear');
-
-    % If TW_target is NaN (outside feasible region), fall back to first finite point
-    if ~isfinite(TW_target)
-        idx = find(isfinite(TW_env), 1, 'first');
-        WS_target = WS(idx);
-        TW_target = TW_env(idx);
-        WS_target_lbft2 = WS_target * SI.lbft; % convert back to lb/ft^2 for reporting
-    end
-
-    % ---- Write results back ----
-    WingLoading = WS_target;
-    ThrustToWeightRatio = TW_target;
-
-    obj.WingLoading = WingLoading;
-    obj.ThrustToWeightRatio = ThrustToWeightRatio;
-
-
-     % ---- Plot for sanity ----
-    figure(101); clf; hold on; grid on; %reuse 1 fig
-
-    plot(WS .* SI.lbft, TW_to, ...
-    'LineWidth', 2, 'DisplayName', 'Take-off Field Length');
-    plot(WS .* SI.lbft, TW_roc, ...
-    'LineWidth', 2, 'DisplayName', 'Rate of Climb');
-    plot(WS .* SI.lbft, TW_tocg, ...
-    'LineWidth', 2, 'DisplayName', 'Take-off Climb Gradient');
-    plot(WS .* SI.lbft, TW_macs, ...
-    'LineWidth', 2, 'DisplayName', 'Mach Number at Ceiling');
-
-    plot(WS .* SI.lbft, TW_env, ...
-    'k--','LineWidth', 2, 'DisplayName', 'Constraint Envelope', 'Color', 'k', 'LineStyle', '--');
-    plot(WS .* SI.lbft, TW_env_feas, ...
-    'k-','LineWidth', 2, 'DisplayName', 'Constraint Envelope (feasible)', 'Color', 'k', 'LineStyle', '--');
-    
-    xline(WSmax_lfl,      ':', 'LineWidth', 2, 'DisplayName', 'LFL limit');
-    xline(WSmax_approach, ':', 'LineWidth', 2, 'DisplayName', 'Approach limit');
-    xline(WSmax_ceiling,  ':', 'LineWidth', 2, 'DisplayName', 'Ceiling limit');
-    xline(WSmax_all,      '-', 'LineWidth', 2, 'DisplayName', 'WS max (min)');
-
-    plot(WS_target_lbft2, ThrustToWeightRatio, ...
-        'ko', 'MarkerFaceColor', 'k', 'DisplayName', 'Design point');
-
-    xlabel('W/S [lb/ft^2]'); ylabel('T/W [-]');
-    ylabel('T/W [-]');
-    title('Constraint Digram');
-    legend('show', 'location', 'best');
 end
-
-
-function y = toRow(x, n, name)
-%TOROW Force output to be 1xN row vector. Throw a helpful error if not.
-    if isscalar(x)
-        y = repmat(x, 1, n);  % scalar -> 1xN
-        return;
-    end
-    y = x(:).';               % vector -> 1xN
-    if numel(y) ~= n
-        error('Subconstraint %s returned %d elements, expected %d.', name, numel(y), n);
-    end
-end
-

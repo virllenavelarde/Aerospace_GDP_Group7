@@ -38,12 +38,13 @@ GeomObj = cast.GeomObj(Name="HTP", Xs=Xs);
 
 %% ------------------------------ HTP mass -------------------------------
 M_dg = obj.MTOM*obj.Mf_TOC*SI.lb; % design mass (taken at Top of Climb)
-
+k_bw_tail = 0.85;
+M_dg_eff  = k_bw_tail * M_dg;
 tcr = 0.15; % thickness to chord at the root
 tct = 0.12; % thickness to chord at teh tip
 
 % Gudmunson (6-49)
-m_HT = 0.016*(1.5*2.5*M_dg)^0.414*(SI.lb/SI.ft^2*q_c)^0.168*...
+m_HT = 0.016*(1.5*2.5*M_dg_eff)^0.414*(SI.lb/SI.ft^2*q_c)^0.168*...
         (obj.HtpArea*SI.ft^2)^0.896*...
         (100*(tcr+tct)/2/cosd(SweepQtrChord))^-0.12*...
         (AR/cosd(SweepQtrChord)^2)^0.043*tr^-0.02;

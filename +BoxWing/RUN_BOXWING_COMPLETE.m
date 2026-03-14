@@ -18,8 +18,9 @@ clear classes;
 
 
 %% Instantiate Boxwing ADP and set TLAR
-ADP = Boxwing.ADP();
-ADP.TLAR = cast.TLAR.Boxwing();  % Top-Level Aircraft Requirements
+ADP = BoxWing.B777.ADP();
+% ADP.TLAR = cast.TLAR.BoxWing();  % Top-Level Aircraft Requirements
+ADP.TLAR = BoxWing.cast.TLAR();  % Top-Level Aircraft Requirements
 
 %% Set boxwing-specific parameters
 % Fuselage geometry
@@ -50,7 +51,7 @@ ADP.Mf_Ldg  = 0.75;                     % landing mass fraction
 ADP.Mf_TOC  = 0.98;                     % top-of-climb mass fraction
 
 %% Initialize aerodynamic polar
-Boxwing.UpdateAero(ADP);
+BoxWing.B777.UpdateAero(ADP);
 
 %% ═══════
 %  SIZING LOOP
@@ -59,10 +60,10 @@ fprintf('═══════════════════════�
 fprintf('   BASELINE SIZING (Span = %.0f m)\n', ADP.FrontWingSpan);
 fprintf('═══════════════════════════════════════════════════════════\n\n');
 
-[ADP, sizing_out] = Boxwing.Size(ADP);
+[ADP, sizing_out] = BoxWing.B777.Size(ADP);
 
 %% Build final geometry
-[BoxGeom, BoxMass] = Boxwing.BuildGeometry(ADP);
+[BoxGeom, BoxMass] = BoxWing.B777.BuildGeometry(ADP);
 
 %% Print key results
 fprintf('\n╔════════════════════════════════════════════════════════════╗\n');

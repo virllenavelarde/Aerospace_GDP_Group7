@@ -1,3 +1,3 @@
 function UpdateAero(obj)
-    obj.AeroPolar = B777.AeroPolar(obj);
+    obj.AeroPolar = BoxWing.B777.AeroPolar(obj);
 end

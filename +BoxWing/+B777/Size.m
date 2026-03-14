@@ -1,36 +1,75 @@
-function [ADP,out] = size(ADP)
-% interatively build the model, run mission analysis and estimate required
-%  MTOM untill covnergence
-delta = inf;
-while delta>1
-    % constraint Analysis
-    [ADP.ThrustToWeightRatio, ADP.WingLoading] = B777.ConstraintAnalysis(ADP);   %fixed to retunr the values instead of just updating
-    ADP.WingArea = ADP.MTOM*9.81/ADP.WingLoading; % update wing area based on new W/S and MTOM (this is used for geometry build)
-    ADP.Thrust = ADP.ThrustToWeightRatio*ADP.MTOM*9.81; % update thrust based on new T/W and MTOM (this is used for geometry build)
+function [obj, out] = Size(obj)
+%SIZE  Iteratively size the boxwing until MTOM converges.
+%
+%  Convergence: OEM + Payload + BlockFuel = MTOM
+%
+%  OEM  = all mass objects EXCEPT 'Fuel Front Wing', 'Fuel Rear Wing',
+%         and 'Payload'  
+delta    = inf;
+iter     = 0;
+MAX_ITER = 50;
 
-    % build geometry
-    [~,B7Mass] = B777.BuildGeometry(ADP);
-    
-    % update Aero
-    B777.UpdateAero(ADP);
-    
-    % mission Analysis
-    [BlockFuel,TripFuel,ResFuel,Mf_TOC,MissionTime] = B777.MissionAnalysis(ADP,ADP.TLAR.Range, ADP.MTOM);
-    
-    % calc OEM
-    idx = contains([B7Mass.Name],"Fuel","IgnoreCase",true) | contains([B7Mass.Name],"Payload","IgnoreCase",true);
-    ADP.OEM = sum([B7Mass(~idx).m]);
-    % estimate MTOM
-    mtom = sum([B7Mass(1:end-2).m])+ADP.TLAR.Payload+BlockFuel;
-    delta = abs(ADP.MTOM - mtom);
-    ADP.MTOM = mtom;
-    ADP.Mf_Fuel = BlockFuel /ADP.MTOM;
-    ADP.Mf_TOC = Mf_TOC;
-    ADP.Mf_Ldg = (ADP.MTOM-TripFuel)/ADP.MTOM;
-    ADP.Mf_res = ResFuel/ADP.MTOM;
-    %estimate outut parameters
-    out = struct();
-    out.BlockFuel = BlockFuel;
-    out.DOC = BlockFuel*1;
-    out.ATR = BlockFuel; 
+fprintf('  Iter |   MTOM (t) |  OEM (t) | Fuel (t) |  delta (kg)\n');
+fprintf('  -----|------------|----------|----------|------------\n');
+
+while delta > 1 && iter < MAX_ITER
+    iter = iter + 1;
+
+    %% Constraint analysis → WS and SLS T/W
+    [obj.ThrustToWeightRatio, obj.WingLoading] = BoxWing.B777.ConstraintAnalysis(obj);
+    % [obj.ThrustToWeightRatio, obj.WingLoading] = ConstraintAnalysis(obj);
+
+    %% Size wing and thrust
+    obj.WingArea  = obj.MTOM * 9.81 / obj.WingLoading;
+    obj.Thrust    = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
+
+    obj.FrontWingArea    = obj.WingArea * 0.50;
+    obj.RearWingArea     = obj.WingArea * 0.50;
+    obj.TotalLiftingArea = obj.WingArea;
+
+    %% Build geometry and get all mass objects
+    [~, BWMass] = BoxWing.B777.BuildGeometry(obj);
+
+    %% Update aero polar (uses current AR)
+    BoxWing.B777.UpdateAero(obj);
+
+    %% Mission analysis
+    [BlockFuel, TripFuel, ResFuel, Mf_TOC, ~] = ...
+        BoxWing.B777.MissionAnalysis(obj, obj.TLAR.Range, obj.MTOM);
+
+    %% OEM filter using cellfun (works reliably on struct arrays)
+    %  Extract all names as a cell array of strings
+    allNames  = cellfun(@(x) x, {BWMass.Name}, 'UniformOutput', false);
+
+    isFuel    = cellfun(@(n) strcmp(n,'Fuel Front Wing') || ...
+                             strcmp(n,'Fuel Rear Wing'), allNames);
+    isPay     = cellfun(@(n) strcmp(n,'Payload'), allNames);
+    isOEM     = ~isFuel & ~isPay;
+
+    obj.OEM = sum([BWMass(isOEM).m]);
+
+    %% MTOM closure (free convergence — NOT pinned)
+    mtom_new = obj.OEM + obj.TLAR.Payload + BlockFuel;
+    delta    = abs(obj.MTOM - mtom_new);
+    obj.MTOM = mtom_new;
+
+    obj.Mf_Fuel = BlockFuel / obj.MTOM;
+    obj.Mf_TOC  = Mf_TOC;
+    obj.Mf_Ldg  = (obj.MTOM - TripFuel) / obj.MTOM;
+    obj.Mf_res  = ResFuel / obj.MTOM;
+
+    fprintf('  %4d | %10.1f | %8.1f | %8.1f | %11.1f\n', ...
+            iter, obj.MTOM/1e3, obj.OEM/1e3, BlockFuel/1e3, delta);
+end
+
+if iter >= MAX_ITER
+    fprintf('  WARNING: max iterations (%d), delta=%.1f kg\n', MAX_ITER, delta);
+else
+    fprintf('  Converged in %d iterations.\n\n', iter);
+end
+
+out           = struct();
+out.BlockFuel = BlockFuel;
+out.OEM       = obj.OEM;
+out.MTOM      = obj.MTOM;
 end

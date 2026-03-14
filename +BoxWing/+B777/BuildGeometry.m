@@ -1,26 +1,41 @@
-function [GeomObj,massObj] = BuildGeometry(obj,opts)
+function [GeomObj, massObj] = BuildGeometry(obj, opts)
+%BUILDGEOMETRY  Assemble all geometry and mass objects for the boxwing.
+
 arguments
     obj
-    opts.FuelFraction = 1;
+    opts.FuelFraction    = 1;
     opts.PayloadFraction = 1;
 end
 
-% Wing
 GeomObj = struct.empty;
 massObj = struct.empty;
 
-FuncNames = ["wing","empenage","fuselage","engine","landingGear"];
+components = ["frontwing","rearwing","verticalconnector", ...
+              "verticaltail","fuselage","engine","landingGear"];
+             
 
-for i = 1:length(FuncNames)
-    [gTmp,mTmp] = B777.geom.(FuncNames(i))(obj); 
-    GeomObj = [GeomObj,gTmp]; % Accumulate geom objects
-    massObj = [massObj, mTmp]; % Accumulate mass objects
+for i = 1:length(components)
+    [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
+    GeomObj = [GeomObj, gTmp];
+    massObj = [massObj, mTmp];
 end
 
-% add fuel mass
-massObj(end+1) = cast.MassObj(Name="Fuel",m=obj.MTOM*obj.Mf_Fuel*opts.FuelFraction,...
-                    X=[obj.WingPos+obj.c_ac*0.15,0]);
-% add payload mass
-massObj(end+1) = cast.MassObj(Name="Payload",m=obj.TLAR.Payload*opts.PayloadFraction,...
-                    X=[obj.CockpitLength+obj.CabinLength/2,0]);
+
+% This is to make the aircraft nose heavy 
+% Ballast for CG control
+m_ballast = 0;  % kg (3 tonnes)
+x_ballast = 3.0;   % m (nose gear bay)
+massObj(end+1) = cast.MassObj(Name="Ballast", m=m_ballast, X=[x_ballast; 0]);
+
+%% Fuel: 60% front wing, 40% rear wing and we can chnage this according to the CG
+fuel = obj.MTOM * obj.Mf_Fuel * opts.FuelFraction;
+massObj(end+1) = cast.MassObj(Name="Fuel Front Wing", ...
+    m=fuel*0.80, X=[obj.FrontWingPos + obj.c_ac*0.15; 0]);
+massObj(end+1) = cast.MassObj(Name="Fuel Rear Wing", ...
+    m=fuel*0.20, X=[obj.RearWingPos  + 2.0; 0]);
+
+%% Payload
+massObj(end+1) = cast.MassObj(Name="Payload", ...
+    m=obj.TLAR.Payload * opts.PayloadFraction, ...
+    X=[obj.CockpitLength + obj.CabinLength*0.50; 0]);
 end

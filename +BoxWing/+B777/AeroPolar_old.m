@@ -1,4 +1,4 @@
-classdef AeroPolar
+classdef AeroPolar_old
     %AEROPOLAR Class to estimate the drag coeefficent of a B777 like
     %aircraft during flight
     properties
@@ -37,7 +37,7 @@ classdef AeroPolar
     % end
 
     methods
-    function obj = AeroPolar(ADP)
+    function obj = AeroPolar_old(ADP)
         % etaLift is lift split (front/rear wing) -- NOT an induced drag factor
         % induced drag benefit for BoxWing comes from higher e in ADP_BW
 
@@ -59,5 +59,3 @@ classdef AeroPolar
     end
 end
 end
-
-

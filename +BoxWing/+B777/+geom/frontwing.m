@@ -21,7 +21,7 @@ x_le    = [tand(sweepLE)*(b/2), 0, 0, 0, tand(sweepLE)*(b/2)]';
 x_te    = x_le + cs;
 Xs      = [x_le, ys; flipud(x_te), flipud(ys)];
 Xs(:,1) = Xs(:,1) + obj.FrontWingPos;
-GeomObj = cast.GeomObj(Name="Front Wing", Xs=Xs);
+GeomObj = BoxWing.cast.GeomObj(Name="Front Wing", Xs=Xs);
 
 %% Store MAC / AC
 obj.c_ac = (2/3) * c_r * (1 + tr + tr^2) / (1 + tr);

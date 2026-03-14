@@ -1,97 +1,122 @@
 classdef ADP < handle
-    %ADP Aircraft Design Parameters for a B777F
+    %ADP Aircraft Design Parameters - Boxwing Freighter ( MTOW)
 
-
-    % Top level Design Parameters
-
-    % Masses
     properties
         TLAR
         Engine
         AeroPolar
     end
 
+    % Mass properties
     properties
-        MTOM    % Maximum take-off mass
-        OEM     % Operational Empty Mass
-        Mf_Ldg  % maximum landing mass fraction (e.g. MLDG = MTOM*Mf_Ldg)
-        Mf_Fuel % fuel mass fraction 
-        Mf_TOC  % "top of climb" mass fraction
-        Mf_res  % "Resevre Fuel" mass fraction
-    end
-    % constraint Paramters
-    properties
-        ThrustToWeightRatio  % 
-        WingLoading          % 
-    end
-    % Aerodynamic
-    properties
-        % ------------------------- geometry -------------------------
-        V_HT = 0.9; % Horizontal Tail Volume
-        V_VT = 0.07; % Vertical tail volume
-
-        % --------------------- aero properties ----------------------
-        Cl_max = 1.5;   % airfoil max Cl for wing
-        CL_max = 2.5;   % max CL (clean) for wing (estimated rn for the sake of code working) %%%%%%%require urgent changes depending on model
-        
-        Delta_Cl_ld = 1; % Extra CL during landing
-        Delta_Cl_to = 0.8; % Extra CL at take-off
-
-        CD_TO = 0.03;     % CD in ground run
-        CL_TO = 0.8;      % CL during ground run        
-        CD_LDG = 0.03;    % CD in ground run on landing
-        CL_LDG = 0.8;     % CL during ground run on landing
-        CL_cruise = 0.5;  % CL during cruise
-
-        LD_c = 16;        % Lift to drag ratio in cruise
-        LD_app = 10;      % Lift to drag ratio during landing
-        CD0 = 0.02;       % Zero-lift drag coefficent
-        e = 0.8;          % Oswald Efficency Factor
+        MTOM    = 319000;   % [kg]  fixed target
+        OEM                 % [kg]  calculated by Size.m
+        Mf_Ldg  = 0.75;    % landing mass fraction
+        Mf_Fuel = 0.28;    % fuel mass fraction  (initial guess)
+        Mf_TOC  = 0.98;    % top-of-climb mass fraction
+        Mf_res  = 0.04;    % reserve fuel fraction
     end
 
-    % Sizing Flags (whether to Adjust certain values during sizing process)
+    % Constraint analysis outputs
     properties
-        isSizeEng = true; % whether to change engine maximum Thrust Value
-        isSizeWing = true; % whether to size the wing
+        ThrustToWeightRatio = 0.30;   % initial guess
+        WingLoading         = 700;    % [N/m^2] initial guess
     end
 
-    % Concrete properties
+    % Aerodynamic properties
     properties
-        Thrust;
-
-        % planfrom specific
-        Span;
-        WingArea;
-        KinkPos;    % y position of wing kink 
-        WingPos;    % Wing position along fuselage
-        HtpPos;     % HTP pos along fuselage
-        VtpPos;     % VTP pos along fuselage
-
-        Mstar = 0.935; % wing technology factor
-
-        % Empenage Specific
-        HtpArea;
-        VtpArea
+        Cl_max      = 1.7;
+        CL_max      = 3.0;
+        Delta_Cl_ld = 1.3;
+        Delta_Cl_to = 1.0;
+        CD_TO       = 0.025;
+        CL_TO       = 0.90;
+        CD_LDG      = 0.030;
+        CL_LDG      = 0.90;
+        CL_cruise   = 0.55;
+        LD_c        = 21;
+        LD_app      = 12;
+        CD0         = 0.016;
+        e           = 0.95;
+        % Boxwing has no conventional tail
+        V_HT        = 0;
+        V_VT        = 0;
     end
 
-    % useful properties
+    % Sizing flags
     properties
-        c_ac % mean geometric chord of main wing
-        x_ac % x location of mean geometeric chord
-        c_ach % mean geometric chord of HTP
-        c_acv % mean geometric chord of VTP
+        isSizeEng  = true;
+        isSizeWing = true;
     end
 
-    % fuselage properties
+    % Boxwing wing geometry
     properties
-        CockpitLength = 7.3;
-        CabinRadius = 2.8;
-        CabinLength = 70.8 - 7.3 - 2.8*2*1.48;  % cabin length= Lf_A350- CockpitLength-(1.4*2*CabinRadius)
+        FrontWingSpan = 60;     % [m]
+        FrontWingArea = 210;    % [m^2]
+        FrontWingPos  = 0;      % [m] set by sizing script
+
+        RearWingSpan  = 60;     % [m]
+        RearWingArea  = 210;    % [m^2]
+        RearWingPos   = 0;      % [m] set by sizing script
+
+        ConnectorHeight = 8;    % [m] vertical gap between wings
+
+        TotalLiftingArea = 420; % [m^2] updated by updateDerivedProps
+        EffectiveSpan    = 50;  % [m]   updated by updateDerivedProps
+
+        Mstar = 0.95;
+    end
+
+    % Names used by shared cast / sizing code
+    properties
+        Thrust   = 0;       % [N] total installed thrust
+        WingArea = 420;     % [m^2]  = TotalLiftingArea
+        Span     = 50;      % [m]    = EffectiveSpan
+        WingPos  = 0;       % [m]    = FrontWingPos
+        KinkPos  = 0;       % not used for boxwing
+
+        HtpArea = 0;
+        VtpArea = 0;
+        HtpPos  = 0;
+        VtpPos  = 0;
+
+        c_ac = 0;   % mean aero chord (set by frontwing.m)
+        x_ac = 0;   % AC x-position  (set by frontwing.m)
+        c_ach = 0;
+        c_acv = 0;
+    end
+
+    % Fuselage geometry
+    properties
+        CockpitLength = 6.5;    % [m]
+        CabinRadius   = 2.93;   % [m]
+        CabinLength   = 0;      % [m] set in constructor
     end
 
     methods
+        function obj = ADP()
+            obj.CabinLength = 70.0 - obj.CockpitLength ...
+                              - obj.CabinRadius * 2 * 1.48;
+        end
+
         function out = AR(obj)
-            out = obj.Span^2/obj.WingArea;
+            %AR  Effective aspect ratio of the boxwing lifting system.
+            if obj.TotalLiftingArea > 0
+                out = obj.EffectiveSpan^2 / obj.TotalLiftingArea;
+            else
+                out = nan;
+            end
+        end
+
+        function updateDerivedProps(obj)
+            %UPDATEDERIVEDPROPS  Recalculate derived 
+            %  Call this after changing spans, areas, or positions.
+            obj.TotalLiftingArea = obj.FrontWingArea + obj.RearWingArea ...
+                                 + 2 * obj.ConnectorHeight * 3.5;
+            obj.EffectiveSpan    = (obj.FrontWingSpan + obj.RearWingSpan) / 2;
+            obj.WingArea         = obj.TotalLiftingArea;
+            obj.Span             = obj.EffectiveSpan;
+            obj.WingPos          = obj.FrontWingPos;
         end
     end
 end

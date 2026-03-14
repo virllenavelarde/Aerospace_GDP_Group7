@@ -20,7 +20,7 @@
 
 %end
 
-function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis(obj, doPlot)
+function [ThrustToWeightRatio, WingLoading] = ConstraintAnalysis_mond(obj, doPlot)
 if nargin < 2, doPlot = true; end
 % ConstraintAnalysis  Builds constraint curves and selects a design point.
 %

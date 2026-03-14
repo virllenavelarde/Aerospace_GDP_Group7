@@ -1,4 +1,4 @@
-function [GeomObj,massObj] = BuildGeometry(obj,opts)
+function [GeomObj,massObj] = BuildGeometry_old(obj,opts)
 arguments
     obj
     opts.FuelFraction = 1;

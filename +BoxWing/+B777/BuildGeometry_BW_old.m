@@ -1,4 +1,4 @@
-function [gList,mList] = BuildGeometry_BW(ADP)
+function [gList,mList] = BuildGeometry_BW_old(ADP)
     % Box-wing ONLY geometry builder
     
     FuncNames = {'fuselage_bw', 'boxwingmass', 'empenage_bw', 'engine', 'landingGear'};

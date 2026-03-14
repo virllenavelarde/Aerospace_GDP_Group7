@@ -1,35 +1,29 @@
 classdef AeroPolar
-    %AEROPOLAR Class to estimate the drag coeefficent of a B777 like
-    %aircraft during flight
+    %AEROPOLAR  Drag polar for the boxwing freighter.
+
     properties
-        Beta
-        e
-        CD0
-        CDmin
-        CLmin % Cl at min drag
+        CD0     % zero-lift drag coefficient
+        e       % Oswald efficiency factor
+        Beta    % induced drag factor  = 1/(pi*AR*e)
     end
 
     methods
         function obj = AeroPolar(ADP)
-            %  CD0 estimate - 0.02
-            % This is an extremely crude assumption, but CD0 of A320 and B777 
-            % are similar and there is no clear trend across aircraft for 
-            % CD0 with MTOM for example. You'll need to use flate  plate 
-            % analogy + component method to deliver a class II/II.5 methodology 
-            obj.CD0 = 0.019; 
+            % CD0 – boxwing has lower wetted area than conventional
+            obj.CD0 = ADP.CD0;   % taken directly from ADP (set to 0.016)
 
-            % calc AR
-            AR = ADP.Span^2/ADP.WingArea;
+            % Effective AR of the boxwing lifting system
+            AR = ADP.AR();
 
-            % calc induced factor (10.2514/1.C036529 Eq.4)
-            Q = 1.05; P = 0.007;
-            obj.e = 1/(Q+P*pi*AR); % estimate of oswald efficency factor
-            obj.Beta = 1/(pi*AR*obj.e);            
+            % Oswald efficiency (Kroo 2005 boxwing correction: e > 1 possible)
+            Q = 1.02;  P = 0.006;
+            obj.e    = min(1.0/(Q + P*pi*AR), ADP.e);  % cap at ADP.e
+            obj.Beta = 1 / (pi * AR * obj.e);
         end
 
-        function CD = CD(obj,CL)
-            % calc CD for a given CL
-            CD = obj.CD0 + obj.Beta*CL.^2;
+        function CD = CD(obj, CL)
+            %CD  Return drag coefficient for a given lift coefficient.
+            CD = obj.CD0 + obj.Beta .* CL.^2;
         end
     end
 end
