@@ -1,0 +1,76 @@
+function fuel_burn_analysis()
+    % basic profile
+    ac.MTOW = 327503.3;           % kg
+    ac.OEW = 129000;            % kg
+    ac.payload = 92000;         % kg
+    ac.S = 422.5;                 % m^2
+    ac.AR = 10.0;               
+    ac.e = 1.8;                
+    ac.CD0 = 0.0221;            
+    ac.k = 1 / (pi * ac.AR * ac.e); 
+
+    % engine profile: Trent XWB-84
+    eng.Fn0 = 362300;          
+    eng.SFC_A = 1.41e-5;        % kg/N/s
+    eng.SFC_B = 0.48e-5;        % kg/N/s
+
+    % mission profile
+    mission.range_nm = 5470.84;    
+    mission.alt_cruise = 35000; 
+    mission.M = 0.80;           
+    
+    % climate profile
+    g = 9.81;
+    alt_m = mission.alt_cruise * 0.3048; 
+    [~, a_cruise, P_cruise, rho_cruise] = atmosisa(alt_m);
+    V_cruise = mission.M * a_cruise;     
+    delta = P_cruise / 101325;     
+
+    % Start & Takeoff ---
+    W0 = ac.MTOW;
+    ff_takeoff = 0.970; 
+    W1 = W0 * ff_takeoff;
+    fuel_takeoff = W0 - W1;
+
+    % Climb 
+    ff_climb = 0.985; 
+    W2 = W1 * ff_climb;
+    fuel_climb = W1 - W2;
+
+    % Cruise
+    W_start_cruise = W2;
+    CL = (W_start_cruise * g) / (0.5 * rho_cruise * V_cruise^2 * ac.S);
+    CD = ac.CD0 + ac.k * CL^2;
+    L_over_D = CL / CD;
+    Thrust_total = (W_start_cruise * g) / L_over_D;
+    Fn_per_eng = Thrust_total / 2; 
+    SFC = eng.SFC_A + eng.SFC_B * (Fn_per_eng / (delta * eng.Fn0));
+
+    range_m = mission.range_nm * 1852;
+    weight_ratio_cruise = exp((range_m * g * SFC) / (V_cruise * L_over_D));
+    W3 = W_start_cruise / weight_ratio_cruise;
+    fuel_cruise = W_start_cruise - W3;
+
+    % Descent
+    ff_descent = 0.990;
+    W4 = W3 * ff_descent;
+    fuel_descent = W3 - W4;
+
+    % Approach & Landing
+    ff_approach = 0.995;
+    W5 = W4 * ff_approach;
+    fuel_approach = W4 - W5;
+
+    total_fuel_burn = W0 - W5;
+
+    fprintf('Input Range:          %d nm\n', mission.range_nm);
+    fprintf('Cruise Altitude:      %d ft (M%.2f)\n', mission.alt_cruise, mission.M);
+    fprintf('L/D (Initial Cruise): %.2f\n', L_over_D);
+    fprintf('SFC (Initial Cruise): %.4e kg/N/s\n', SFC);
+    fprintf('Fuel Burn - Takeoff:  %.2f kg\n', fuel_takeoff);
+    fprintf('Fuel Burn - Climb:    %.2f kg\n', fuel_climb);
+    fprintf('Fuel Burn - Cruise:   %.2f kg\n', fuel_cruise);
+    fprintf('Fuel Burn - Descent:  %.2f kg\n', fuel_descent);
+    fprintf('Fuel Burn - Approach: %.2f kg\n', fuel_approach);
+    fprintf('Total Mission Fuel:   %.2f kg\n', total_fuel_burn);
+end

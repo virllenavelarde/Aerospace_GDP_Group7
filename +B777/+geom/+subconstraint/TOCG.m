@@ -2,34 +2,60 @@
 %output = TW required
 %take off climb gradient (OEI)
 
-function [TW_TOCG] = TOCG(obj,WS)   %take off climb gradient
-    %requirement
-    % NOTE: 0.024 is NOT the usual "OEI second segment" value for twins
-    G_min = 0.024; %FAR, 3% at V_CL, but we need to calculate the actual value based on the TOCG conditions (gear up/down, V2/VTO, etc)
+function TW = TOCG(obj, WS, mode)
+% mode: "AEO" or "OEI_2nd"
+if nargin < 3, mode = "OEI_2nd"; end
 
-    %conditions
-    alt_tocg = 0; %airport alt
-    rho = cast.atmos(alt_tocg);
+    alt = 0;
+    [rho,~] = cast.atmos(alt,0);
 
-    CLmax_TO = 2.2;   % placeholder, assume single-slotted flap equivalent
-    Vs_TO = sqrt( 2*WS ./ (rho * CLmax_TO) );
-    V = 1.25 * Vs_TO;    % V2
-    q = 0.5 * rho .* (V.^2);
+    CLmax_TO = obj.CL_max + obj.Delta_Cl_to;
+    Vs = sqrt( 2*WS ./ (rho * CLmax_TO) );
+
+    % Use a reasonable V2 rule (keep your 1.25 if you want)
+    V  = 1.20 * Vs;
+    q  = 0.5 * rho .* V.^2;
+
+    % Use takeoff-config drag model (DO NOT use cruise AeroPolar here)
+    CD0 = obj.CD_TO;
+    eTO = obj.e;              % ok as placeholder (or make e_TO)
     
-    %model
-    if isprop(obj,'AeroPolar') && ~isempty(obj.AeroPolar)
-        CL = WS ./ q;
-        CD = obj.AeroPolar.CD(CL);
-        DoverW = CD ./ CL;
+    AR = obj.AR();
+    % Force AR to be a scalar for this subconstraint
+    if isempty(AR) || ~all(isfinite(AR(:))) || any(AR(:) <= 0)
+        AR = obj.AR_target;
     else
-        CD0 = 0.03;      % higher than cruise due to high-lift / gear (placeholder)
-        AR  = 10;
-        e   = 0.80;
-        DoverW = q .* CD0 ./ WS + WS ./ (q*pi*AR*e);
+        AR = AR(1);  % take the first element if it's a vector
     end
 
-    %OEI factor (Twin-engine)
-    nEng = 2;
-    OEI_factor = (nEng-1)/nEng; %simple assumption, need to confirm with actual engine out performance requirements
+    DoverW = q.*CD0./WS + WS./(q*pi*AR*eTO);
 
-    TW_TOCG = (DoverW + G_min) ./OEI_factor;
+    switch mode
+        case "AEO"
+            G = obj.TLAR.TOCG_AEO_gearUp;
+            G = sanitizeG(G, 0.03);
+            TW = DoverW + G;
+        case "OEI_2nd"
+            % If TLAR doesn't have this yet, fallback
+            if isprop(obj.TLAR,'TOCG_OEI_gearUp')
+                G = obj.TLAR.TOCG_OEI_gearUp;
+            else
+                G = 0.024;
+            end
+            G = sanitizeG(G, 0.024);
+            OEI_factor = 0.5;
+            TW = (DoverW + G) ./ OEI_factor;
+
+        otherwise
+            error("Unknown TOCG mode: %s", mode);
+    end
+end
+
+function g = sanitizeG(g, fallback)
+g = double(g);
+if isempty(g) || any(~isfinite(g(:)))
+    g = fallback;
+else
+    g = g(1);   % force scalar
+end
+end

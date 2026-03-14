@@ -3,12 +3,17 @@ function [GeomObj,massObj] = wing(obj)
 
 
 %% Calculate wing planform parameters
-SweepQtrChord = real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c)); % quarter chord sweep angle
-tr =  -0.0083*SweepQtrChord + 0.4597; % taper ratio of outer portion of the wing
+SweepQtrChord = 31; % [28 34] deree %real(acosd(0.75.*obj.Mstar./obj.TLAR.M_c)); % quarter chord sweep angle --> %need to fix this too (Mstar = Wing technology factor, M_c = cruise Mach) [28-34 deg], sweep, but LE or QC sweep
+tr =  0.30; % taper ratio of outer portion of the wing, linearly tapered: (MAC) = 9.109 m, 12.78 root, 0.3 taper, mainly use MAC chord***
 
 b = obj.Span;
-S = (obj.MTOM*9.81)/obj.WingLoading;    %get area from W/S, and MTOM
-obj.WingArea = S; % store wing area in object for later use (used for S_w)
+%S = (obj.MTOM*9.81)/obj.WingLoading;    %get area from W/S, and MTOM
+if isempty(obj.WingArea) || ~isfinite(obj.WingArea) || obj.WingArea <= 0
+    obj.WingArea = (obj.MTOM*9.81)/obj.WingLoading;
+end
+S = obj.WingArea;
+%obj.WingArea = S; % store wing area in object for later use (used for S_w)
+%let size handle wingarea
 
 R_f = obj.CabinRadius;        % radius of fuselage, input para in ADP
 L2 = obj.KinkPos-R_f;   % length from fuselage to kink
@@ -46,6 +51,8 @@ y_ac = fminsearch(@(y)(trapz([ys(idx),y],interp1(ys(idx:idx+1),cs(idx:idx+1),[ys
 obj.c_ac = interp1(ys,cs,y_ac);
 obj.x_ac = interp1(ys,x_qtr,y_ac);
 
+obj.MAC = obj.c_ac;   % ADD THIS -- stores MAC for CD0 to read
+
 % place aerodynamic centre at WingPos
 Xs(:,1) = Xs(:,1) + (obj.WingPos-obj.x_ac);
 obj.x_ac = obj.WingPos;
@@ -58,9 +65,9 @@ S_w  = obj.WingArea * (SI.ft)^2;   % [ft^2]
 t_w = 0.15*c_r*SI.ft; % max thickness at root
 cosLambda     = cosd(sweepHalf);
 
-% Design gross weight in pounds-force (no 9.81 anywhere)
-Wdg_lb = obj.MTOM * obj.Mf_TOC * SI.lb;  % choose design mass fraction Mf_TOC appropriately
-n_z    = 2.5 * 1.5;                      % ultimate
+% Design gross weight in pounds-force (Raymer correlation expects TO weight-type input)
+Wdg_lb = obj.MTOM * SI.lb;    % <- DO NOT multiply by Mf_TOC here
+n_z    = 2.5 * 1.5;
 
 % Pressurization factor (transport default)
 Wpc = 1.0;
@@ -73,7 +80,7 @@ w_wing = 0.00125 * Wdg_lb * (b_w/cosLambda)^0.75 * ...
 % Convert to mass [kg]
 m_wing = (w_wing / SI.lb);
 
-massObj = cast.MassObj(Name="Wing",m=m_wing,X=[obj.x_ac;0]);
+massObj = cast.MassObj(Name="Wing",m=m_wing,X=[obj.x_ac;0]);%
 end
 
 

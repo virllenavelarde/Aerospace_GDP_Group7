@@ -1,88 +1,102 @@
 function [BlockFuel,TripFuel,ResFuel,Mf_TOC,MissionTime,cruise_FL] = MissionAnalysis(ADP,tripRange,M_TO)
 %MISSIONANALYSIS conduct mission analysis to estimate fuel burn
 arguments
-    ADP % geometry object
-    tripRange % mission range in m
-    M_TO = ADP.MTOM; % take off mass
+    ADP
+    tripRange
+    M_TO = ADP.MTOM;
 end
 
-EWF = 1;   % empty weight fraction
-fs = double.empty;
-ts = double.empty;
+EWF = 1.0;                 % "empty weight fraction" style accumulator (really mass fraction remaining)
+fs  = zeros(1,4);
+ts  = zeros(1,4);
 
-%% cruise analysis (assume constant C_L)
-
-% pick optimal altitude for cruise
-alts = linspace(15e3./SI.ft,44e3./SI.ft,61);
-[rho,a,T,P] = cast.atmos(alts);
-% [rho_s,a_s,~,P_s] = dcrg.aero.atmos(0);
+%% ------------------- CRUISE (fixed altitude) -------------------
+alt = ADP.TLAR.Alt_cruise;
+[rho,a,~,~] = cast.atmos(alt);
 M_cruise = ADP.TLAR.M_c;
-CL_c = EWF*M_TO*9.81./(1/2.*rho.*(a.*M_cruise).^2.*ADP.WingArea); % cruise C_L
+
+% Lift coefficient and L/D at cruise
+CL_c = (EWF*M_TO*9.81) / (0.5*rho*(a*M_cruise)^2 * ADP.WingArea);
 CD_c = ADP.AeroPolar.CD(CL_c);
-LD_c = CL_c./CD_c;
-[~,idx] = max(LD_c);
+LD_c = CL_c / CD_c;
 
-alt = alts(idx);
-CL_c = CL_c(idx);
-CD_c = CD_c(idx);
-LD_c = CL_c/CD_c;
-[~,a,~,~] = cast.atmos(alt);
-cruise_FL = round(alt.*SI.ft/1e2,0);
-disp(cruise_FL)
+TSFC_c = ADP.Engine.TSFC(M_cruise, alt);
+V      = M_cruise*a;
 
-Cls = 0.4:0.01:0.8;
-LDs = Cls*0;
-for i = 1:length(Cls)
-   LDs(i) =  Cls(i)/ADP.AeroPolar.CD(Cls(i));
+AR = ADP.Span^2 / ADP.WingArea;
+
+% fprintf("CRUISE: S=%.1f  b=%.1f  AR=%.2f  CL=%.3f  CD=%.4f  LD=%.2f  TSFC=%.3e\n", ...
+%     ADP.WingArea, ADP.Span, AR, CL_c, CD_c, LD_c, TSFC_c);  %remove
+
+
+% Basic sanity (prevents nonsense)
+if ~isfinite(LD_c) || LD_c <= 1
+    error("MissionAnalysis: nonphysical L/D at cruise (LD=%.3g). Check AeroPolar/CD.", LD_c);
 end
-f = figure(11);clf;plot(Cls,LDs)
 
-% account for fact I don't model climb with an "effective" trip range
-tripRange = tripRange * 1;
-fs(1) = exp(-tripRange*9.81*ADP.Engine.TSFC(M_cruise,alt)/(M_cruise*a*LD_c)); % Rearranged Brequet
-ts(1) = tripRange/(M_cruise*a); % time taken
-EWF = EWF*fs(1);
+cruise_FL = round(alt*SI.ft/1e2,0);
 
+% Breguet (jet): exp(-R * g * TSFC / (V * L/D))
+TSFC_c = ADP.Engine.TSFC(M_cruise, alt);    % MUST be in [1/s] for this formula as written
+V      = M_cruise*a;
 
-%% alternate mission analysis
-[rho,a,~,P] = cast.atmos(ADP.TLAR.Alt_alternate);
-% [rho_s,a_s,~,P_s] = dcrg.aero.atmos(0);
-M_cruise = ADP.TLAR.M_c;
+if ~isfinite(TSFC_c) || TSFC_c <= 0
+    error("MissionAnalysis: nonphysical TSFC (%.3g). Check engine TSFC units.", TSFC_c);
+end
 
-CL_c = EWF*M_TO*9.81/(1/2*rho*(a*M_cruise)^2*ADP.WingArea); % cruise C_L
-CD_c = ADP.AeroPolar.CD(CL_c);
-LD_c = CL_c/CD_c;
+fs(1) = exp(-(tripRange*9.81*TSFC_c)/(V*LD_c));
+ts(1) = tripRange / V;
+EWF   = EWF * fs(1);
 
-% account for fact I don't model climb with an "effective" trip range
-altRange = ADP.TLAR.Range_alternate * 1;
+%% ------------------- ALTERNATE CRUISE -------------------
+altA = ADP.TLAR.Alt_alternate;
+[rhoA,aA,~,~] = cast.atmos(altA);
 
-fs(2) = exp(-altRange*9.81*ADP.Engine.TSFC(M_cruise,altRange)/(M_cruise*a*LD_c)); % Rearranged Brequet
-ts(2) = altRange/(M_cruise*a); % time taken
-EWF = EWF*fs(2);
+CL_a = (EWF*M_TO*9.81) / (0.5*rhoA*(aA*M_cruise)^2 * ADP.WingArea);
+CD_a = ADP.AeroPolar.CD(CL_a);
+LD_a = CL_a / CD_a;
 
-%% loiter
-[rho,a,~,P] = cast.atmos(0);
-Mach = 150/a;
-CL = EWF*M_TO*9.81/(1/2*rho*(a*Mach)^2*ADP.WingArea);
-CD = ADP.AeroPolar.CD(CL);
-LD = CL/CD;
+if ~isfinite(LD_a) || LD_a <= 1
+    error("MissionAnalysis: nonphysical L/D on alternate (LD=%.3g).", LD_a);
+end
 
-fs(3) = exp(-ADP.TLAR.Loiter*9.81*ADP.Engine.TSFC(Mach,0)/LD); % Snorri
-ts(3) = ADP.TLAR.Loiter; % time taken
-EWF = EWF*fs(3);
+TSFC_a = ADP.Engine.TSFC(M_cruise, altA);
+VA     = M_cruise*aA;
 
-%% Contingency
-df = (1-EWF)*0.03;
-fs(4) = 1-df/EWF;
-ts(4) = 5*60; % 5 minutes...
-EWF = EWF*fs(4);
+fs(2) = exp(-(ADP.TLAR.Range_alternate*9.81*TSFC_a)/(VA*LD_a));
+ts(2) = ADP.TLAR.Range_alternate / VA;
+EWF   = EWF * fs(2);
 
+%% ------------------- LOITER -------------------
+[rho0,a0,~,~] = cast.atmos(0);
+V_loit = 150;                 % [m/s] placeholder
+Mach   = V_loit/a0;
 
-%% update model
-BlockFuel = (1-EWF) * M_TO;
-TripFuel = (1-fs(1))*M_TO;
-ResFuel = (1-prod(fs(2:end)))*M_TO;
-Mf_TOC = 1;
+CL_l = (EWF*M_TO*9.81) / (0.5*rho0*V_loit^2 * ADP.WingArea);
+CD_l = ADP.AeroPolar.CD(CL_l);
+LD_l = CL_l / CD_l;
+
+TSFC_l = ADP.Engine.TSFC(Mach, 0);
+
+fs(3) = exp(-(ADP.TLAR.Loiter*9.81*TSFC_l)/LD_l);
+ts(3) = ADP.TLAR.Loiter;
+EWF   = EWF * fs(3);
+
+%% ------------------- CONTINGENCY -------------------
+df    = (1-EWF)*0.03;
+fs(4) = 1 - df/EWF;
+ts(4) = 5*60;
+EWF   = EWF * fs(4);
+
+%% ------------------- OUTPUTS -------------------
+BlockFuel   = (1-EWF) * M_TO;
+TripFuel    = (1-fs(1)) * M_TO;
+W_after_cruise = fs(1) * M_TO;
+ResFuel = (1 - prod(fs(2:end))) * W_after_cruise;
+
+% Until you explicitly model climb, don't let TOC fraction be "1".
+% Use a stable placeholder (typical 0.97–0.99). This is mainly used by your wing mass model.
+Mf_TOC      = 0.98;
 
 MissionTime = ts(1);
 end

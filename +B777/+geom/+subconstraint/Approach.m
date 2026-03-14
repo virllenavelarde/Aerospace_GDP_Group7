@@ -1,4 +1,4 @@
-function WS_Max_Vapp = Approach(obj)
+function WS_Max_Vapp = Approach(obj) %returns Pa
     % Spec requirement
     Vapp = obj.TLAR.V_app;   % [m/s] in TLAR
     Vstall = Vapp/1.3;
@@ -14,5 +14,5 @@ function WS_Max_Vapp = Approach(obj)
     WS_SI = 0.5 * rho * Vstall^2 * CLmax_land;
 
     % Convert to lb/ft^2 for your constraint diagram
-    WS_Max_Vapp = WS_SI * SI.lbft;  % Pa -> lb/ft^2
+    WS_Max_Vapp = WS_SI;  % Pa
 end

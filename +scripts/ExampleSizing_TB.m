@@ -1,0 +1,173 @@
+% scripts/ExampleSizing_TB.m
+
+clear; clc; close all;
+
+ADP = B777.ADP();   %calling class ADP
+ADP.TLAR = cast.TLAR.TubeWing();    %change here bc obj. is defined in TLAR (cast)
+
+% --- Seed mass fractions so geometry/mass models don't crash on iter 1 ---
+ADP.Mf_TOC  = 0.97;
+ADP.Mf_Fuel = 0.20;
+ADP.Mf_res  = 0.03;
+ADP.Mf_Ldg  = 0.70;
+
+% --- Hyperparameter seed ---
+ADP.KinkPos = 10;                       % keep for now (B777 wing builder needs it)
+Lf = ADP.CockpitLength + ADP.CabinLength + 1.48*2*ADP.CabinRadius;
+ADP.WingPos = 0.44*Lf;
+ADP.HtpPos  = 0.85*Lf;
+ADP.VtpPos  = 0.82*Lf;
+
+
+% --- Initial MTOM seed for the iteration ---
+ADP.MTOM = 3.3 * ADP.TLAR.Payload;      % kg (seed)
+
+% --- Run iterative sizing (this finds MTOM) ---
+ADP = B777.size(ADP);
+
+% TubeWing uses BuildGeometry not BuildGeometry_BW
+figure(1); clf;
+img = imread('B777F_planform.png');
+imshow(img, 'XData', [0 63.7], 'YData', [-64.8 64.8]/2);
+
+[B7Geom, B7Mass] = B777.BuildGeometry(ADP);
+cast.draw(B7Geom, B7Mass)
+ax = gca;
+ax.XAxis.Visible = "on";
+ax.YAxis.Visible = "on";
+axis equal
+ylim([-0.5 0.5]*ADP.Span)
+
+%debug sesh
+fprintf("\n--- UNIT CHECK ---\n");
+fprintf("MTOM (kg)          = %.6e\n", ADP.MTOM);
+fprintf("Weight W (N)       = %.6e\n", ADP.MTOM*9.81);
+
+fprintf("WingLoading stored = %.6e\n", ADP.WingLoading);
+fprintf("WingLoading as lb/ft^2 (if SI) = %.3f\n", ADP.WingLoading*SI.lbft);
+
+fprintf("WingArea stored (m^2) = %.6e\n", ADP.WingArea);
+fprintf("Computed S = W/WS (m^2) = %.6e\n", (ADP.MTOM*9.81)/ADP.WingLoading);
+fprintf("AR from stored = %.6f\n", ADP.Span^2/ADP.WingArea);
+fprintf("AR from W/WS S = %.6f\n", ADP.Span^2/((ADP.MTOM*9.81)/ADP.WingLoading));
+fprintf("\n")
+
+%impose cruise CL
+[rho,a] = cast.atmos(ADP.TLAR.Alt_cruise);
+V = ADP.TLAR.M_c * a;
+q = 0.5*rho*V^2;
+
+W = ADP.MTOM * 9.81 * ADP.Mf_TOC;   % TOC weight proxy
+ADP.CL_cruise = W/(q*ADP.WingArea);
+
+%impose CLmaxclean = nu3D*Clmax (nu3d = 3d conversion factor, depends on sweep, taper, tip, but ~.85-.95)
+ADP.CL_max = 0.90 * ADP.Cl_max; %in case it escapes the loop or the value needs rewritten
+
+% --- Report outputs ---
+fprintf("=== TubeWing Sized ===\n");
+fprintf("MTOM: %.0f t\n", ADP.MTOM/1e3);
+fprintf("WingLoading (raw): %.2f\n", ADP.WingLoading);
+fprintf("WingLoading: %.2f lb/ft^2\n", ADP.WingLoading * SI.lbft);
+fprintf("WingArea: %.1f m^2\n", ADP.WingArea);
+fprintf("Span: %.1f m\n", ADP.Span);
+fprintf("T/W: %.3f\n", ADP.ThrustToWeightRatio);
+
+% returns total CD0 + full breakdown struct
+[ADP.CD0, CD0_break] = B777.CD0(ADP);
+polars = B777.multiPhasePolar(ADP);
+
+% rebuild polar with physics-based total
+B777.UpdateAero(ADP);
+
+[BlockFuel, TripFuel, ResFuel, Mf_TOC, MissionTime] = B777.MissionAnalysis(ADP, ADP.TLAR.Range, ADP.MTOM);
+
+% inspect breakdown
+fprintf('Wing fraction = %.1f%%\n', 100*CD0_break.CD0_wing/CD0_break.CD0_total);
+
+% AeroPolar may exist only if UpdateAero builds it
+if ~isempty(ADP.AeroPolar)
+    % Use computed cruise CL (fallback to 0.5 if not available)
+    if isprop(ADP,'CL_cruise') && ~isempty(ADP.CL_cruise) && isfinite(ADP.CL_cruise)
+        CL_use = ADP.CL_cruise;
+        tag = "cruise";
+    else
+        CL_use = 0.5;
+        tag = "default";
+    end
+    CD_use = ADP.AeroPolar.CD(CL_use);
+    fprintf("CD(CL_%s=%.3f): %.4f\n", tag, CL_use, CD_use);
+    fprintf("L/D(CL_%s=%.3f): %.1f\n", tag, CL_use, CL_use/CD_use);
+else
+    fprintf("AeroPolar not built yet (check B777.UpdateAero).\n");
+end
+
+%graph aero polarar CD vs CL : Drag polarar plots
+if ~isempty(ADP.AeroPolar)
+    polar = ADP.AeroPolar;
+
+    CL = linspace(0, 1.2, 200);
+    CD = polar.CD(CL);
+    LD = CL ./ CD;
+
+    % cruise point
+    CLc = ADP.CL_cruise;
+    CDc = polar.CD(CLc);
+    LDc = CLc / CDc;
+
+    % max L/D (within plotted range)
+    [LDmax, iMax] = max(LD);
+    CL_LDmax = CL(iMax);
+    CD_LDmax = CD(iMax);
+
+    figure(201); clf; grid on; hold on;
+    plot(CL, CD, 'LineWidth', 2);
+    plot(CLc, CDc, 'ko', 'MarkerFaceColor','k');
+    plot(CL_LDmax, CD_LDmax, 'ks', 'MarkerFaceColor','k');
+    xlabel('C_L'); ylabel('C_D');
+    title('Drag Polar: C_D vs C_L');
+    legend('Polar', sprintf('Cruise (CL=%.2f, CD=%.3f)', CLc, CDc), ...
+           sprintf('Max L/D (CL=%.2f)', CL_LDmax), 'Location','best');
+
+    figure(202); clf; grid on; hold on;
+    plot(CL, LD, 'LineWidth', 2);
+    plot(CLc, LDc, 'ko', 'MarkerFaceColor','k');
+    plot(CL_LDmax, LDmax, 'ks', 'MarkerFaceColor','k');
+    xlabel('C_L'); ylabel('L/D');
+    title('Efficiency: L/D vs C_L');
+    legend('L/D', sprintf('Cruise (L/D=%.1f)', LDc), ...
+           sprintf('Max L/D=%.1f', LDmax), 'Location','best');
+
+    fprintf("\n--- POLAR SUMMARY ---\n");
+    fprintf("Cruise: CL=%.3f CD=%.4f L/D=%.2f\n", CLc, CDc, LDc);
+    fprintf("Max L/D (in plot range): CL=%.3f CD=%.4f L/D=%.2f\n", CL_LDmax, CD_LDmax, LDmax);
+
+    LogTW = scripts.logPolarToStruct(ADP, "TubeWing");
+    save("AeroLog_TubeWing.mat","LogTW");   % writes file to cwd
+
+    %span study
+    Spans = 50:5:100;
+    mtoms = Spans*0;
+    fuels = mtoms;
+    ADP0 = ADP;
+
+    for i = 1:length(Spans)
+        ADPi = ADP0;
+        ADPi.Span = Spans(i);
+        ADPi = B777.size(ADPi);
+        mtoms(i) = ADPi.MTOM;
+        fuels(i) = ADPi.Mf_Fuel * ADPi.MTOM;
+    end
+
+    figure(2); clf;
+    tt = tiledlayout(2,1);
+    nexttile(1);
+    plot(Spans, mtoms/1e3, '-s')
+    xlabel('Span [m]'); ylabel('MTOM [t]')
+
+    nexttile(2);
+    plot(Spans, fuels/1e3, '-o')
+    xlabel('Span [m]'); ylabel('Block Fuel [t]')
+end
+
+dist_TW = B777.liftDistribution(ADP);
+fprintf('TW root BM cruise = %.3e N·m\n', dist_TW.BM_cruise);

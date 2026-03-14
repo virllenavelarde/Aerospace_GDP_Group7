@@ -21,11 +21,23 @@ function [TW_ROC] = ROC(obj,WS)    %rate of climb --> subsonic climb --> source 
         CD = obj.AeroPolar.CD(CL);
         DtoW = CD ./ CL;
     else
-        CD0 = 0.02; %placeholder
-        AR = 9;     %placeholder
-        e = 0.8;    %placeholder
-        DtoW = q.* CD0./WS + WS./(q*pi*AR*e);
+        % --- FIX: guarantee scalar CD0 ---
+        CD0_raw = obj.CD0;
+        if isscalar(CD0_raw)
+            CD0 = CD0_raw;
+        elseif isvector(CD0_raw)
+            CD0 = sum(CD0_raw);   % sum components (wing + fuse + etc.)
+            warning('ROC: obj.CD0 was a vector [%s], summing to %.5f', ...
+                    num2str(CD0_raw, '%.4f '), CD0);
+        else
+            error('ROC: obj.CD0 has unexpected size %s', mat2str(size(CD0_raw)));
+        end
+        e  = obj.e;
+        AR = obj.AR();
+        if isempty(AR) || ~isfinite(AR) || AR <= 0
+            AR = obj.AR_target;
+        end
+        DtoW = q.*CD0./WS + WS./(q*pi*AR*e);
     end
-
     TW_ROC = DtoW + ROC_req ./ V;      %3.11, G = climb gradient = (T-D)/W = sin(climb angle)
 end
