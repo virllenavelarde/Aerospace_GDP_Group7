@@ -16,9 +16,25 @@ while delta > 1 && iter < MAX_ITER
     iter = iter + 1;
 
     %% Constraint analysis → WS and SLS T/W
-    [obj.ThrustToWeightRatio, obj.WingLoading] = BoxWing.B777.ConstraintAnalysis(obj);
+    % [obj.ThrustToWeightRatio, obj.WingLoading] = BoxWing.B777.ConstraintAnalysis(obj);
     % [obj.ThrustToWeightRatio, obj.WingLoading] = ConstraintAnalysis(obj);
+    % Landing field constraint → W/S
+    rho_sl  = 1.225;
+    V_stall = obj.TLAR.V_app / 1.30;
+    WS_land = 0.5 * rho_sl * V_stall^2 * obj.CL_max;
+    WS      = min(WS_land / obj.Mf_Ldg, 8500);   % clamp to freighter range [N/m²]
 
+    % Cruise drag → T/W, lapsed to SLS
+    [rho_c, a_c] = BoxWing.cast.atmos(obj.TLAR.Alt_cruise);
+    q_c     = 0.5 * rho_c * (obj.TLAR.M_c * a_c)^2;
+    CL_c    = WS / q_c;
+    CD_c    = obj.CD0 + CL_c^2 / (pi * obj.e * obj.AR());
+    TW_cr   = (q_c * CD_c / WS) * 1.10;          % +10% margin
+    lapse   = (rho_c / rho_sl)^0.75;
+    TW      = TW_cr / lapse;
+
+    obj.WingLoading         = WS;
+    obj.ThrustToWeightRatio = TW;
     %% Size wing and thrust
     obj.WingArea  = obj.MTOM * 9.81 / obj.WingLoading;
     obj.Thrust    = obj.ThrustToWeightRatio * obj.MTOM * 9.81;

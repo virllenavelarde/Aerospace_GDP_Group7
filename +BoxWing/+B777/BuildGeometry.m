@@ -10,15 +10,14 @@ end
 GeomObj = struct.empty;
 massObj = struct.empty;
 
-components = ["landingGear", "verticalconnector", "rearwing", "frontwing", ...
-              "verticaltail","fuselage","engine"];
+components = ["frontwing", "rearwing", "verticalconnector", ...
+              "verticaltail","fuselage","engine", "landingGear"];
              
 
-%or i = 1:length(components)
-%    [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
-%    GeomObj = [GeomObj, gTmp];
-%    massObj = [massObj, mTmp];
-%end
+for i = 1:length(components)
+    [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
+    GeomObj = [GeomObj, gTmp];
+    massObj = [massObj, mTmp];%end
 
 
 % This is to make the aircraft nose heavy 

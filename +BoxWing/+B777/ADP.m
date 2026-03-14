@@ -99,6 +99,25 @@ classdef ADP < handle
                               - obj.CabinRadius * 2 * 1.48;
         end
 
+        
+
+        function updateDerivedProps(obj)
+            % Approximate total wing area split equally front/rear
+            % (refine once aero discipline delivers proper sizing)
+            obj.FrontWingArea  = obj.WingArea * 0.55;   % ~55% front
+            obj.RearWingArea   = obj.WingArea * 0.45;   % ~45% rear           
+            L_f = obj.CockpitLength + obj.CabinLength + obj.CabinRadius*1.48;
+            obj.FrontWingPos = 0.40 * L_f;
+            obj.RearWingPos  = 0.90 * L_f;
+
+            obj.TotalLiftingArea = obj.FrontWingArea + obj.RearWingArea ...
+                                 + 2 * obj.ConnectorHeight * 3.5;
+            obj.EffectiveSpan    = (obj.FrontWingSpan + obj.RearWingSpan) / 2;
+            obj.WingArea         = obj.TotalLiftingArea;
+            obj.Span             = obj.EffectiveSpan;
+            obj.WingPos          = obj.FrontWingPos;
+        end
+
         function out = AR(obj)
             %AR  Effective aspect ratio of the boxwing lifting system.
             if obj.TotalLiftingArea > 0
@@ -107,16 +126,16 @@ classdef ADP < handle
                 out = nan;
             end
         end
-
-        function updateDerivedProps(obj)
+        %function updateDerivedProps(obj)
             %UPDATEDERIVEDPROPS  Recalculate derived 
             %  Call this after changing spans, areas, or positions.
-            obj.TotalLiftingArea = obj.FrontWingArea + obj.RearWingArea ...
-                                 + 2 * obj.ConnectorHeight * 3.5;
-            obj.EffectiveSpan    = (obj.FrontWingSpan + obj.RearWingSpan) / 2;
-            obj.WingArea         = obj.TotalLiftingArea;
-            obj.Span             = obj.EffectiveSpan;
-            obj.WingPos          = obj.FrontWingPos;
-        end
+        %    obj.TotalLiftingArea = obj.FrontWingArea + obj.RearWingArea ...
+        %                         + 2 * obj.ConnectorHeight * 3.5;
+        %    obj.EffectiveSpan    = (obj.FrontWingSpan + obj.RearWingSpan) / 2;
+        %    obj.WingArea         = obj.TotalLiftingArea;
+        %    obj.Span             = obj.EffectiveSpan;
+        %    obj.WingPos          = obj.FrontWingPos;
+        %end
+        
     end
 end
