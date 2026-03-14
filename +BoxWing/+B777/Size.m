@@ -36,12 +36,17 @@ while delta > 1 && iter < MAX_ITER
     obj.WingLoading         = WS;
     obj.ThrustToWeightRatio = TW;
     %% Size wing and thrust
-    obj.WingArea  = obj.MTOM * 9.81 / obj.WingLoading;
+    AR_min           = 5.0;
+    WingArea_max     = obj.EffectiveSpan^2 / AR_min;
+    obj.WingArea     = min(obj.WingArea, WingArea_max);
+    % obj.WingArea  = obj.MTOM * 9.81 / obj.WingLoading;
+    obj.WingLoading  = obj.MTOM * 9.81 / obj.WingArea;  % keep consistent
+    
     obj.Thrust    = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
-
     obj.FrontWingArea    = obj.WingArea * 0.50;
     obj.RearWingArea     = obj.WingArea * 0.50;
     obj.TotalLiftingArea = obj.WingArea;
+    obj.FrontWingArea = obj.WingArea * 0.50;
 
     %% Build geometry and get all mass objects
     [~, BWMass] = BoxWing.B777.BuildGeometry(obj);
@@ -65,9 +70,10 @@ while delta > 1 && iter < MAX_ITER
     obj.OEM = sum([BWMass(isOEM).m]);
 
     %% MTOM closure (free convergence — NOT pinned)
+    relax = 0.3; % relaxation factor to prevent divergence
     mtom_new = obj.OEM + obj.TLAR.Payload + BlockFuel;
     delta    = abs(obj.MTOM - mtom_new);
-    obj.MTOM = mtom_new;
+    obj.MTOM = (1 - relax) * obj.MTOM + relax * mtom_new;
 
     obj.Mf_Fuel = BlockFuel / obj.MTOM;
     obj.Mf_TOC  = Mf_TOC;

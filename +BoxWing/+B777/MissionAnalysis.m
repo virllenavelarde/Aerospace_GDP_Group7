@@ -12,7 +12,7 @@ ts  = zeros(1,4);
 
 %% ------------------- CRUISE (fixed altitude) -------------------
 alt = ADP.TLAR.Alt_cruise;
-[rho,a,~,~] = cast.atmos(alt);
+[rho,a,~,~] = BoxWing.cast.atmos(alt);
 M_cruise = ADP.TLAR.M_c;
 
 % Lift coefficient and L/D at cruise
@@ -20,14 +20,12 @@ CL_c = (EWF*M_TO*9.81) / (0.5*rho*(a*M_cruise)^2 * ADP.WingArea);
 CD_c = ADP.AeroPolar.CD(CL_c);
 LD_c = CL_c / CD_c;
 
-TSFC_c = ADP.Engine.TSFC(M_cruise, alt);
-V      = M_cruise*a;
 
-AR = ADP.Span^2 / ADP.WingArea;
-
+%fprintf('DEBUG MA: WingArea=%.1f  Span=%.1f  CD0=%.4f  Beta=%.4f\n', ...
+%        ADP.WingArea, ADP.Span, ADP.AeroPolar.CD0, ADP.AeroPolar.Beta);
+%fprintf('DEBUG MA: CL=%.4f  CD=%.4f  LD=%.4f\n', CL_c, CD_c, LD_c);
 % fprintf("CRUISE: S=%.1f  b=%.1f  AR=%.2f  CL=%.3f  CD=%.4f  LD=%.2f  TSFC=%.3e\n", ...
 %     ADP.WingArea, ADP.Span, AR, CL_c, CD_c, LD_c, TSFC_c);  %remove
-
 
 % Basic sanity (prevents nonsense)
 if ~isfinite(LD_c) || LD_c <= 1
@@ -35,10 +33,14 @@ if ~isfinite(LD_c) || LD_c <= 1
 end
 
 cruise_FL = round(alt*SI.ft/1e2,0);
+TSFC_c = ADP.Engine.TSFC(M_cruise, alt);
+V      = M_cruise*a;
+
+AR = ADP.Span^2 / ADP.WingArea;
 
 % Breguet (jet): exp(-R * g * TSFC / (V * L/D))
-TSFC_c = ADP.Engine.TSFC(M_cruise, alt);    % MUST be in [1/s] for this formula as written
-V      = M_cruise*a;
+%TSFC_c = ADP.Engine.TSFC(M_cruise, alt);    % MUST be in [1/s] for this formula as written
+%V      = M_cruise*a;
 
 if ~isfinite(TSFC_c) || TSFC_c <= 0
     error("MissionAnalysis: nonphysical TSFC (%.3g). Check engine TSFC units.", TSFC_c);
@@ -49,10 +51,30 @@ ts(1) = tripRange / V;
 EWF   = EWF * fs(1);
 
 %% ------------------- ALTERNATE CRUISE -------------------
-altA = ADP.TLAR.Alt_alternate;
-[rhoA,aA,~,~] = cast.atmos(altA);
+%altA = ADP.TLAR.Alt_alternate;
+%[rhoA,aA,~,~] = BoxWing.cast.atmos(altA);
 
-CL_a = (EWF*M_TO*9.81) / (0.5*rhoA*(aA*M_cruise)^2 * ADP.WingArea);
+%CL_a = (EWF*M_TO*9.81) / (0.5*rhoA*(aA*M_cruise)^2 * ADP.WingArea);
+%CD_a = ADP.AeroPolar.CD(CL_a);
+%LD_a = CL_a / CD_a;
+
+
+
+%TSFC_a = ADP.Engine.TSFC(M_cruise, altA);
+%VA     = M_cruise*aA;
+
+%fs(2) = exp(-(ADP.TLAR.Range_alternate*9.81*TSFC_a)/(VA*LD_a));
+%ts(2) = ADP.TLAR.Range_alternate / VA;
+%EWF   = EWF * fs(2);
+
+
+altA = ADP.TLAR.Alt_alternate;          % 1500 ft
+[rhoA, aA, ~, ~] = BoxWing.cast.atmos(altA);
+
+M_alt = 0.4;    % low-speed alternate, NOT cruise Mach
+VA    = M_alt * aA;
+
+CL_a = (EWF*M_TO*9.81) / (0.5*rhoA*VA^2 * ADP.WingArea);
 CD_a = ADP.AeroPolar.CD(CL_a);
 LD_a = CL_a / CD_a;
 
@@ -60,15 +82,14 @@ if ~isfinite(LD_a) || LD_a <= 1
     error("MissionAnalysis: nonphysical L/D on alternate (LD=%.3g).", LD_a);
 end
 
-TSFC_a = ADP.Engine.TSFC(M_cruise, altA);
+TSFC_a = ADP.Engine.TSFC(M_alt, altA);
 VA     = M_cruise*aA;
-
 fs(2) = exp(-(ADP.TLAR.Range_alternate*9.81*TSFC_a)/(VA*LD_a));
 ts(2) = ADP.TLAR.Range_alternate / VA;
 EWF   = EWF * fs(2);
 
 %% ------------------- LOITER -------------------
-[rho0,a0,~,~] = cast.atmos(0);
+[rho0,a0,~,~] = BoxWing.cast.atmos(0);
 V_loit = 150;                 % [m/s] placeholder
 Mach   = V_loit/a0;
 

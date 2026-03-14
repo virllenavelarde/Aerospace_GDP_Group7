@@ -2,8 +2,8 @@ function [GeomObj, massObj] = frontwing(obj)
 %FRONTWING  Forward lifting surface of the boxwing freighter.
 %  Includes primary structure + control surfaces (flaps, ailerons, spoilers).
 %  Composite factor 0.75 
-fprintf('DEBUG frontwing: FrontWingSpan=%s, FrontWingArea=%s\n', ...
-    mat2str(obj.FrontWingSpan), mat2str(obj.FrontWingArea));
+%fprintf('DEBUG frontwing: FrontWingSpan=%s, FrontWingArea=%s\n', ...
+%    mat2str(obj.FrontWingSpan), mat2str(obj.FrontWingArea));
 %% Planform
 SweepQtrChord = 25;
 tr  = 0.35;

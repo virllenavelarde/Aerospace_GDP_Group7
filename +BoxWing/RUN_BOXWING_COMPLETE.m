@@ -20,8 +20,9 @@ clear classes;
 %% Instantiate Boxwing ADP and set TLAR
 ADP = BoxWing.B777.ADP();
 % ADP.TLAR = cast.TLAR.BoxWing();  % Top-Level Aircraft Requirements
-ADP.TLAR = BoxWing.cast.TLAR();  % Top-Level Aircraft Requirements
-
+ADP.TLAR = BoxWing.cast.TLAR.Boxwing();  % Top-Level Aircraft Requirements
+% Initialise engine (GE90-like, rubberised later in Size.m)
+ADP.Engine = BoxWing.cast.eng.TurboFan.GE90(1.0, ADP.TLAR.Alt_cruise, ADP.TLAR.M_c);
 %% Set boxwing-specific parameters
 % Fuselage geometry
 ADP.CockpitLength = 6.5;
@@ -99,7 +100,7 @@ figure(1); clf;
 set(gcf, 'Color', 'w', 'Position', [100 100 1200 600]);
 
 % Top view planform
-cast.draw(BoxGeom, BoxMass);
+BoxWing.cast.draw(BoxGeom, BoxMass);
 hold on;
 plot(x_cg, 0, 'rx', 'MarkerSize', 20, 'LineWidth', 3);
 text(x_cg, -2, sprintf('CG: x=%.1f m', x_cg), ...
@@ -163,7 +164,7 @@ fprintf('   MISSION ANALYSIS\n');
 fprintf('═══════════════════════════════════════════════════════════\n\n');
 
 [BlockFuel, TripFuel, ResFuel, Mf_TOC, MissionTime, cruise_FL] = ...
-    Boxwing.MissionAnalysis(ADP, ADP.TLAR.Range, ADP.MTOM);
+    BoxWing.B777.MissionAnalysis(ADP, ADP.TLAR.Range, ADP.MTOM);
 
 fprintf('Design Range:    %.0f NM\n', ADP.TLAR.Range * SI.Nmile);
 fprintf('Trip Fuel:       %.1f t\n', TripFuel/1e3);
@@ -196,29 +197,52 @@ ADP0 = ADP;
 
 fprintf('Testing %d span configurations from %.0f m to %.0f m...\n', ...
         length(Spans), min(Spans), max(Spans));
-
+a = 0;
 % Loop over spans
 for i = 1:length(Spans)
     fprintf('  [%2d/%2d] Span = %.0f m ... ', i, length(Spans), Spans(i));
     
     % Reset ADP and set new span
-    ADPi = ADP0;
+    % ADPi = ADP0; % reset to baseline
+    ADPi = BoxWing.B777.ADP(); % Tis line was changed
+    ADPi.TLAR           = BoxWing.cast.TLAR.Boxwing();
+    ADPi.Engine         = BoxWing.cast.eng.TurboFan.GE90(1.0, ADPi.TLAR.Alt_cruise, ADPi.TLAR.M_c);
+    ADPi.CockpitLength  = ADP.CockpitLength;
+    ADPi.CabinRadius    = ADP.CabinRadius;
+    ADPi.CabinLength    = ADP.CabinLength;
+    ADPi.V_HT           = 0;
+    ADPi.V_VT           = 0.05;
     ADPi.FrontWingSpan = Spans(i);
     ADPi.RearWingSpan  = Spans(i);
+    ADPi.ConnectorHeight = ADP.ConnectorHeight;
     ADPi.updateDerivedProps();
+
+
+    % Fresh MTOM seed — always start from a clean estimate
+    ADPi.MTOM    = 3.0 * ADPi.TLAR.Payload;
+    ADPi.Mf_Fuel = 0.28;
+    ADPi.Mf_res  = 0.04;
+    ADPi.Mf_Ldg  = 0.75;
+    ADPi.Mf_TOC  = 0.98;
+
+    try
+          % Re-size aircraft
+          ADPi = BoxWing.B777.Size(ADPi);
+
+          % Store results
+          mtoms(i) = ADPi.MTOM;
+          fuels(i) = ADPi.Mf_Fuel * ADPi.MTOM;
+          oems(i)  = ADPi.OEM;
+          areas(i) = ADPi.WingArea;
+          ARs(i)   = ADPi.AR();
     
-    % Re-size aircraft
-    ADPi = Boxwing.Size(ADPi);
-    
-    % Store results
-    mtoms(i) = ADPi.MTOM;
-    fuels(i) = ADPi.Mf_Fuel * ADPi.MTOM;
-    oems(i)  = ADPi.OEM;
-    areas(i) = ADPi.WingArea;
-    ARs(i)   = ADPi.AR();
-    
-    fprintf('MTOM=%.0f t, Fuel=%.0f t, AR=%.2f\n', ...
+          fprintf('MTOM=%.0f t, Fuel=%.0f t, AR=%.2f\n', ...
             mtoms(i)/1e3, fuels(i)/1e3, ARs(i));
+     catch ME
+          fprintf('FAILED: %s\n', ME.message);
+          mtoms(i) = NaN; fuels(i) = NaN;
+          oems(i)  = NaN; areas(i) = NaN; ARs(i) = NaN;
+    end
 end
 
 fprintf('\nTrade study complete.\n\n');

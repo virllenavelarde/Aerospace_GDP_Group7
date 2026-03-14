@@ -17,7 +17,8 @@ components = ["frontwing", "rearwing", "verticalconnector", ...
 for i = 1:length(components)
     [gTmp, mTmp] = BoxWing.B777.geom.(components(i))(obj);
     GeomObj = [GeomObj, gTmp];
-    massObj = [massObj, mTmp];%end
+    massObj = [massObj, mTmp];
+end
 
 
 % This is to make the aircraft nose heavy 
