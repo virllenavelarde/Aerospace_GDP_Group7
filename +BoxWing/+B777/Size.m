@@ -1,16 +1,22 @@
-function [obj, out] = Size(obj)
+function [obj, out] = Size(obj,verbose)
 %SIZE  Iteratively size the boxwing until MTOM converges.
 %
 %  Convergence: OEM + Payload + BlockFuel = MTOM
 %
 %  OEM  = all mass objects EXCEPT 'Fuel Front Wing', 'Fuel Rear Wing',
 %         and 'Payload'  
+if nargin < 2
+    verbose = true;   % default: show output when called normally
+end
+
 delta    = inf;
 iter     = 0;
 MAX_ITER = 50;
 
-fprintf('  Iter |   MTOM (t) |  OEM (t) | Fuel (t) |  delta (kg)\n');
-fprintf('  -----|------------|----------|----------|------------\n');
+if verbose
+    fprintf('  Iter |   MTOM (t) |  OEM (t) | Fuel (t) |  delta (kg)\n');
+    fprintf('  -----|------------|----------|----------|------------\n');
+end
 
 while delta > 1 && iter < MAX_ITER
     iter = iter + 1;
@@ -80,16 +86,19 @@ while delta > 1 && iter < MAX_ITER
     obj.Mf_Ldg  = (obj.MTOM - TripFuel) / obj.MTOM;
     obj.Mf_res  = ResFuel / obj.MTOM;
 
-    fprintf('  %4d | %10.1f | %8.1f | %8.1f | %11.1f\n', ...
-            iter, obj.MTOM/1e3, obj.OEM/1e3, BlockFuel/1e3, delta);
+    if verbose
+        fprintf('  %4d | %10.1f | %8.1f | %8.1f | %11.1f\n', ...
+                iter, obj.MTOM/1e3, obj.OEM/1e3, BlockFuel/1e3, delta);
+    end
 end
 
-if iter >= MAX_ITER
-    fprintf('  WARNING: max iterations (%d), delta=%.1f kg\n', MAX_ITER, delta);
-else
-    fprintf('  Converged in %d iterations.\n\n', iter);
+if verbose
+    if iter >= MAX_ITER
+        fprintf('  WARNING: max iterations (%d), delta=%.1f kg\n', MAX_ITER, delta);
+    else
+        fprintf('  Converged in %d iterations.\n\n', iter);
+    end
 end
-
 out           = struct();
 out.BlockFuel = BlockFuel;
 out.OEM       = obj.OEM;

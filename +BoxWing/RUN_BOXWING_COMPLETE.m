@@ -85,6 +85,54 @@ fprintf('║  CD (CL=0.5)   : %7.4f                                  ║\n', ADP
 fprintf('║  L/D cruise    : %7.1f                                  ║\n', ADP.LD_c);
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
+
+%% ── DOC Calculation ─────────────────────────────────────────────────────
+fleet_size = 6;          % number of aircraft
+SAF_ratio  = 1.0;        % 100% SAF (change to 0 for kerosene baseline)
+T_max_kN   = ADP.Engine.T_Static / 1000;   % [kN] per engine
+
+[DOC_total, DOC_breakdown, no_landings] = BoxWing.script.DOC( ...
+    ADP.MTOM / 1e3, ...          % MTOM in tonnes
+    ADP.OEM, ...                 % OEM in kg
+    sizing_out.BlockFuel, ...    % block fuel per flight in kg
+    fleet_size, ...
+    SAF_ratio, ...
+    ADP.TLAR.M_c, ...
+    T_max_kN);
+
+fprintf('╔════════════════════════════════════════════════════════════╗\n');
+fprintf('║                    DOC RESULTS                             ║\n');
+fprintf('╠════════════════════════════════════════════════════════════╣\n');
+fprintf('║  Crew cost        : %7.2f M$/season                    ║\n', DOC_breakdown.crew/1e6);
+fprintf('║  Fuel cost        : %7.2f M$/season                    ║\n', DOC_breakdown.fuel/1e6);
+fprintf('║  Landing fees     : %7.2f M$/season                    ║\n', DOC_breakdown.landing/1e6);
+fprintf('║  Parking fees     : %7.2f M$/season                    ║\n', DOC_breakdown.parking/1e6);
+fprintf('║  Navigation       : %7.2f M$/season                    ║\n', DOC_breakdown.navigation/1e6);
+fprintf('║  Maintenance      : %7.2f M$/season                    ║\n', DOC_breakdown.maintenance/1e6);
+fprintf('║  Depreciation     : %7.2f M$/season                    ║\n', DOC_breakdown.depreciation/1e6);
+fprintf('║  Interest         : %7.2f M$/season                    ║\n', DOC_breakdown.interest/1e6);
+fprintf('║  Insurance        : %7.2f M$/season                    ║\n', DOC_breakdown.insurance/1e6);
+fprintf('╠════════════════════════════════════════════════════════════╣\n');
+fprintf('║  TOTAL DOC        : %7.2f M$/season                    ║\n', DOC_total/1e6);
+fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
+
+%% ── Climate Impact Calculation ─────────────────────────────────────────
+[ATR100, climate_bd] = BoxWing.script.ClimateImpact_trial( ...
+    ADP, sizing_out.BlockFuel, fleet_size, no_landings, SAF_ratio);
+
+fprintf('║  ATR100 (total)   : %.4e K                          ║\n', ATR100);
+fprintf('║    CO2            : %.4e K                          ║\n', climate_bd.ATR_CO2);
+fprintf('║    NOx            : %.4e K                          ║\n', climate_bd.ATR_NOx);
+fprintf('║    AIC/contrails  : %.4e K                          ║\n', climate_bd.ATR_AIC);
+fprintf('║    H2O            : %.4e K                          ║\n', climate_bd.ATR_H2O);
+
+
+
+
+
+
+
+
 %  PART 2 — GEOMETRY VISUALIZATION
 
 

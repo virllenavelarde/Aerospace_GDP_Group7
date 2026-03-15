@@ -1,17 +1,19 @@
 %% ECONOMIC EVALUATION
 % function DOC(MTOM, no_landings, ICAO_taxi_configuration, no_days_landing, fuel_kerosene_percentage, fuel_SAF_percentage, fuel_consumption_per_flight, total_flight_hours)
+function [DOC, breakdown] = DOC(MTOM_t, OEM_kg, BlockFuel_kg, fleet_size, SAF_ratio, M_c, T_max_kN)
 % Inputs from other disciplines
-MTOM = 330;                     % tonnes
+
+MTOM = MTOM_t;                  % tonnes
 % no_landings = 30;               % number of landings per year per aircraft
 ICAO_taxi_configuration = 'E';  % ICAO taxi configuration
 % total_flight_hours = 4214;      % total flight hours per year per aircraft
-fleet_size = 6;                 % number of aircraft in the fleet
+%fleet_size = 6;                 % number of aircraft in the fleet
 % no_flights = 50; % number of flights per year per aircraft
-M_e = 100000;                   % kg, empty mass of the aircraft
+M_e = OEM_kg;                   % kg, empty mass of the aircraft
 V_max = 400;                    % km/h, maximum velocity 
 N_ownership = fleet_size;       % number of aircraft in 5 years production
-T_max = 115;                    % kN; maximum thrust
-M_max = 0.85;                   % -, maximum Mach number
+T_max = T_max_kN;                    % kN; maximum thrust
+M_max = M_c;                   % -, maximum Mach number
 T_3 = 1000;                     % K, turbine inlet temperature
 N_ft = 2;                       % assumption, number of flight test aircraft
 N_leasing = 50;                 % assumption, number of aircraft leased per year
@@ -68,9 +70,9 @@ end
 total_parking_fees = parking_fee_per_day * no_days_parking * fleet_size; % $ per year
 
 % Fuel costs
-fuel_kerosene_percentage = 0;   % percentage of fuel that is kerosene
-fuel_SAF_percentage = 1;        % percentage of fuel that is SAF
-fuel_consumption_per_hour = 8002.77 * 0.8; % liters per flight
+fuel_SAF_percentage = SAF_ratio;        % percentage of fuel that is SAF
+fuel_kerosene_percentage = 1 - SAF_ratio;   % percentage of fuel that is kerosene
+fuel_consumption_per_hour = BlockFuel_kg * 0.8; % liters per flight
 fuel_price_kerosene = 1.00; % $ per liter
 fuel_price_SAF = 2.00; % $ per liter
 total_fuel_price_per_litre = fuel_price_kerosene * fuel_kerosene_percentage + fuel_price_SAF * fuel_SAF_percentage; % $ per liter
@@ -505,4 +507,4 @@ end
 fclose(fid);
 fprintf('Summary table exported to: %s\n', csv_filename);
 
-% end
+end
