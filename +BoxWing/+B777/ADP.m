@@ -93,6 +93,12 @@ classdef ADP < handle
         CabinLength   = 0;      % [m] set in constructor
     end
 
+    properties 
+        x_ac_rear = 0;
+        x_ac_sys = 0;
+        MAC = 0;
+    end
+
     methods
         function obj = ADP()
             obj.CabinLength = 70.0 - obj.CockpitLength ...

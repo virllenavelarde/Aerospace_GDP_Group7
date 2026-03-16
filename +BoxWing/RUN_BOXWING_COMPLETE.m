@@ -60,8 +60,8 @@ BoxWing.B777.UpdateAero(ADP);
 fprintf('═══════════════════════════════════════════════════════════\n');
 fprintf('   BASELINE SIZING (Span = %.0f m)\n', ADP.FrontWingSpan);
 fprintf('═══════════════════════════════════════════════════════════\n\n');
-
 [ADP, sizing_out] = BoxWing.B777.Size(ADP);
+ac = BoxWing.B777.liftingSurfaceAC(ADP);  % verbose=true by default, prints once
 
 %% Build final geometry
 [BoxGeom, BoxMass] = BoxWing.B777.BuildGeometry(ADP);
