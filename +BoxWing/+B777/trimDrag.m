@@ -30,6 +30,7 @@ e_r   = 0.85;   % conservative Oswald for fwd-swept rear wing
 l_ac     = x_ac_r - x_ac_f;
 delta_x  = x_ac_sys - x_cg;
 CL_h     = (delta_x / l_ac) * ADP.CL_cruise * (S_ref / S_r);
+CL_h    = max(-1.2, min(1.2, CL_h));   % physical cap
 
 %% Trim drag referenced to S_ref
 CD_trim = (CL_h^2) / (pi * AR_r * e_r) * (S_r / S_ref);
@@ -42,6 +43,6 @@ out.l_ac        = l_ac;
 out.CL_h        = CL_h;
 out.CD_trim     = CD_trim;
 
-fprintf('  Trim drag: delta_x=%.2fm  CL_h=%.4f  CD_trim=%.6f\n', ...
-        delta_x, CL_h, CD_trim);
+% fprintf('  Trim drag: delta_x=%.2fm  CL_h=%.4f  CD_trim=%.6f\n', ..., deal with it later if needed
+%         delta_x, CL_h, CD_trim);
 end

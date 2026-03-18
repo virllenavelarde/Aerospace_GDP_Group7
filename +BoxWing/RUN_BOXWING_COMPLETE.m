@@ -222,6 +222,25 @@ fprintf('Mission Time:    %.1f hr\n', MissionTime/3600);
 fprintf('Cruise FL:       FL%.0f\n', cruise_FL);
 fprintf('\n');
 
+%  PART 4b — LIFT DISTRIBUTION
+
+fprintf('═══════════════════════════════════════════════════════════\n');
+fprintf('   LIFT DISTRIBUTION (Figure 4)\n');
+fprintf('═══════════════════════════════════════════════════════════\n\n');
+
+dist_BW = BoxWing.B777.liftDistribution(ADP);
+
+% Spanwise centroid of lift
+y_cent_cr = dist_BW.BM_cruise / (dist_BW.CL_cruise * ADP.WingArea * ... 
+            0.5 * 1.225 * (0.82*340)^2 / 2);  % shortcut: use BM/halfWeight
+% Simpler direct calc:
+W_cr = ADP.MTOM * 9.81 * ADP.Mf_TOC;
+y_centroid = dist_BW.BM_cruise / (W_cr / 2);
+
+fprintf('BW root BM cruise  = %.3e N·m\n', dist_BW.BM_cruise);
+fprintf('Lift centroid      = %.2f m from root (%.1f%% semi-span)\n', ...
+        y_centroid, y_centroid / (ADP.EffectiveSpan/2) * 100);
+
 
 %  PART 5 — TRADE STUDY: SPAN vs MTOM & FUEL
 

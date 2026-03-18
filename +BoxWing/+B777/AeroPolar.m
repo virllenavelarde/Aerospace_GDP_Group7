@@ -9,7 +9,8 @@ classdef AeroPolar
     end
 
     methods
-        function obj = AeroPolar(ADP)
+        function obj = AeroPolar(ADP, x_cg)
+
             %% Zero-lift drag
             obj.CD0 = ADP.CD0;
 
@@ -19,15 +20,13 @@ classdef AeroPolar
             obj.e    = min(1.0/(Q + P*pi*AR), ADP.e);
             obj.Beta = 1 / (pi * AR * obj.e);
 
-            %% Trim drag , check value again
+            %% Trim drag — use real CG if provided, else fall back to 48% fuselage
+            if nargin < 2 || isempty(x_cg)
+                L_f  = ADP.CockpitLength + ADP.CabinLength + ADP.CabinRadius * 1.48;
+                x_cg = 0.48 * L_f;
+            end
+
             try
-                if isprop(ADP, 'x_ac_sys') && ADP.x_ac_sys ~= 0
-                    % Estimate cruise CG as ~48% of fuselage length (typical forward CG)
-                    L_f = ADP.CockpitLength + ADP.CabinLength + ADP.CabinRadius * 1.48;
-                    x_cg = 0.48 * L_f;
-                else
-                    x_cg = ADP.x_ac;   % fallback
-                end
                 [obj.CD_trim, ~] = BoxWing.B777.trimDrag(ADP, x_cg);
             catch ME
                 warning('AeroPolar: trimDrag failed (%s). CD_trim = 0.', ME.message);
@@ -40,7 +39,6 @@ classdef AeroPolar
         end
 
         function CD = CD_no_trim(obj, CL)
-            %CD_NO_TRIM  Polar without trim drag, for comparison.
             CD = obj.CD0 + obj.Beta .* CL.^2;
         end
     end
