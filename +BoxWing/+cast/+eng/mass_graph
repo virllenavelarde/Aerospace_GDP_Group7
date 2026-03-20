@@ -1,0 +1,72 @@
+function segmented_mission_analysis()
+    % Profile
+    range_total = 10132;         
+    alt_cruise_target = 35000;  
+    m_start = 327503.3;           
+    alt_cruise_m = alt_cruise_target * 0.3048; 
+    
+    % Segment Mass Fractions
+    mf_takeoff = 0.970;         % Ma  Mb 
+    mf_climb_total = 0.985;     % Mb  Mc 
+    mf_descent_total = 0.990;   % Md  Me 
+    
+    % Climb
+    num_climb_steps = 20;
+    dist_climb_total = 200;   
+    s_climb = linspace(0, dist_climb_total, num_climb_steps);
+    h_climb = linspace(0, alt_cruise_m, num_climb_steps);
+    m_climb = zeros(1, num_climb_steps);
+    m_climb(1) = m_start * mf_takeoff;
+    step_mf_climb = mf_climb_total^(1/num_climb_steps);
+    for i = 2:num_climb_steps
+        m_climb(i) = m_climb(i-1) * step_mf_climb;
+    end
+
+    % Cruise Segment
+    num_cruise_steps = 50;
+    dist_cruise_start = dist_climb_total;
+    dist_cruise_end = range_total - 150; 
+    s_cruise = linspace(dist_cruise_start, dist_cruise_end, num_cruise_steps);
+    h_cruise = alt_cruise_m + (s_cruise - dist_cruise_start) * 0.1;
+    m_cruise = zeros(1, num_cruise_steps);
+    m_cruise(1) = m_climb(end);
+    for i = 2:num_cruise_steps
+        m_cruise(i) = m_cruise(i-1) * 0.9995; 
+    end
+    num_descent_steps = 20;
+    s_descent = linspace(dist_cruise_end, range_total, num_descent_steps);
+    h_descent = linspace(alt_cruise_m, 0, num_descent_steps);
+    m_descent = linspace(m_cruise(end), m_cruise(end)*mf_descent_total, num_descent_steps);
+    total_dist = [s_climb, s_cruise, s_descent];
+    total_alt_ft = [h_climb, h_cruise, h_descent] / 0.3048;
+    total_mass = [m_climb, m_cruise, m_descent];
+    figure('Color', 'w', 'Name', 'Segmented Mission Analysis');
+    
+    % Flight Profile
+    subplot(2,1,1);
+    plot(total_dist / range_total, total_alt_ft / 100, 'b', 'LineWidth', 2); hold on;
+    s_step = [0, 0.1, 0.1, 0.3, 0.3, 0.6, 0.6, 0.9, 0.9, 1.0];
+    h_step = [0, 0, 300, 300, 310, 310, 340, 340, 0, 0];
+    plot(s_step, h_step, 'Color', [0.85 0.7 0.1], 'LineStyle', '--', 'LineWidth', 1.5);
+    
+    grid on;
+    xlabel('Norm. Dist');
+    ylabel('Flight Level');
+    legend('Constant C_L', 'Stepped', 'Location', 'SouthEast');
+    ylim([0 400]);
+
+    % Mass Fractions 
+    subplot(2,1,2);
+    plot(total_dist, total_mass / 1000, 'Color', [0.2 0.6 0.2], 'LineWidth', 2);
+    grid on;
+    xlabel('Range (km)');
+    ylabel('Aircraft Mass (tonnes)');
+
+    % Output
+    fprintf('Mission Summary:\n');
+    fprintf('Total Range: %.0f km\n', range_total);
+    fprintf('Initial Mass (Ma): %.1f tonnes\n', m_start/1000);
+    fprintf('Landing Mass (Me): %.1f tonnes\n', total_mass(end)/1000);
+    fprintf('Total Fuel Burned: %.1f tonnes\n', (m_start - total_mass(end))/1000);
+    fprintf('Total Mass Fraction (Me/Ma): %.4f\n', total_mass(end)/m_start);
+end
