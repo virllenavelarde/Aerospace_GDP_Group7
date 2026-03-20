@@ -20,6 +20,7 @@ for i = 1:length(components)
     massObj = [massObj, mTmp];
 end
 
+BoxWing.B777.liftingSurfaceAC(obj, 'verbose', false); %lifting surface forr both surfaces
 
 % This is to make the aircraft nose heavy 
 % Ballast for CG control

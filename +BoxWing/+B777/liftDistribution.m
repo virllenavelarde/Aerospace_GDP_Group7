@@ -31,7 +31,7 @@ function dist = LiftDistribution(obj)
     % =========================================================
     % CHORD DISTRIBUTION c(y)
     % =========================================================
-    if isa(obj, 'B777.ADP_BW')
+    if isa(obj, 'B777.ADP_BW') || isa(obj, 'BoxWing.B777.ADP')
         % BoxWing -- front wing chord distribution (trapezoidal)
         % uses same tr and geometry as boxwingmass.m
         tr    = 0.30;
@@ -86,8 +86,8 @@ function dist = LiftDistribution(obj)
     % =========================================================
     % FLIGHT CONDITIONS
     % =========================================================
-    [rho_SL, a_SL, ~,~,~] = cast.atmos(0);
-    [rho_cr, a_cr, ~,~,~] = cast.atmos(obj.TLAR.Alt_cruise);
+    [rho_SL, a_SL, ~,~,~] = BoxWing.cast.atmos(0);
+    [rho_cr, a_cr, ~,~,~] = BoxWing.cast.atmos(obj.TLAR.Alt_cruise);
 
     M_cr  = obj.TLAR.M_c;
     M_TO  = 0.25;   % ***ASSUMPTION*** typical TO Mach
@@ -122,7 +122,7 @@ function dist = LiftDistribution(obj)
     l_elliptic  = schrenk(c_elliptic, CL_cruise, W_cruise);
 
     % --- BoxWing: rear wing distribution ---
-    if isa(obj, 'B777.ADP_BW')
+    if isa(obj, 'B777.ADP_BW') || isa(obj, 'BoxWing.B777.ADP')
         eta       = obj.etaLift;               % lift split
         W_front_cr = eta     * W_cruise;
         W_rear_cr  = (1-eta) * W_cruise;
@@ -142,6 +142,8 @@ function dist = LiftDistribution(obj)
         l_TO_total     = l_TO;
     end
 
+    
+
     % =========================================================
     % BENDING MOMENT (root bending moment from lift distribution)
     % M_root = integral from 0 to b/2 of l(y)*y dy
@@ -149,6 +151,10 @@ function dist = LiftDistribution(obj)
     BM_cruise = trapz(y, l_cruise_total .* y);   % [N·m]
     BM_TO     = trapz(y, l_TO_total     .* y);   % [N·m]
 
+    % Spanwise centroid of lift (where resultant acts)
+    y_centroid_cr = BM_cruise / (W_cruise / 2);   % [m] from root
+    y_centroid_TO = BM_TO     / (W_TO    / 2);
+    
     % =========================================================
     % PRINT SUMMARY
     % =========================================================
@@ -163,17 +169,20 @@ function dist = LiftDistribution(obj)
     fprintf('  W_cruise      = %.0f N\n',    W_cruise);
     fprintf('  CL_cruise     = %.3f\n',       CL_cruise);
     fprintf('  Root BM       = %.3e N·m\n',  BM_cruise);
+    fprintf('  Lift centroid (cruise): y = %.2f m (%.1f%% semi-span)\n', y_centroid_cr, y_centroid_cr/(b/2)*100);
     fprintf('----------------------------------------------\n');
     fprintf('  TAKE-OFF\n');
     fprintf('  W_TO          = %.0f N\n',    W_TO);
     fprintf('  CL_TO         = %.3f\n',       CL_TO);
     fprintf('  Root BM       = %.3e N·m\n',  BM_TO);
+    fprintf('  Lift centroid (TO):     y = %.2f m (%.1f%% semi-span)\n', y_centroid_TO, y_centroid_TO/(b/2)*100);
     fprintf('==============================================\n\n');
+
 
     % =========================================================
     % PLOT
     % =========================================================
-    if isa(obj, 'B777.ADP_BW')
+    if isa(obj, 'B777.ADP_BW') || isa(obj, 'BoxWing.B777.ADP')
         fig_num = 401;
     else
         fig_num = 400;
@@ -196,7 +205,7 @@ function dist = LiftDistribution(obj)
     plot(y_full, l_TO_full/1000,  'r--', 'LineWidth', 2, 'DisplayName', 'Take-off');
     plot(y_full, l_ell_full/1000, 'k:',  'LineWidth', 1.5, 'DisplayName', 'Elliptic (ref)');
 
-    if isa(obj, 'B777.ADP_BW')
+    if isa(obj, 'B777.ADP_BW') || isa(obj, 'BoxWing.B777.ADP')
         l_fr_full = [fliplr(l_front_cr), l_front_cr(2:end)];
         l_rr_full = [fliplr(l_rear_cr),  l_rear_cr(2:end)];
         plot(y_full, l_fr_full/1000, 'b-.', 'LineWidth', 1.2, 'DisplayName', 'Front wing (cruise)');
@@ -252,8 +261,10 @@ function dist = LiftDistribution(obj)
     dist.BM_cruise    = BM_cruise;
     dist.BM_TO        = BM_TO;
     dist.config       = config_name;
+    dist.y_centroid_cr = y_centroid_cr;
+    dist.y_centroid_TO = y_centroid_TO;
 
-    if isa(obj, 'B777.ADP_BW')
+    if isa(obj, 'B777.ADP_BW') || isa(obj, 'BoxWing.B777.ADP')
         dist.l_front_cr = l_front_cr;
         dist.l_rear_cr  = l_rear_cr;
         dist.l_front_TO = l_front_TO;
