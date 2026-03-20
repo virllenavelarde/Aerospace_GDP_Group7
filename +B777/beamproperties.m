@@ -61,29 +61,27 @@ classdef beamproperties
             total_weight = obj.MTOM * g;
             safe_total_weight = total_weight * n;
 
-            % divide by 2 for one wing / half span
-            halfspan_load = safe_total_weight / 2;
+            % total lift on one aircraft side
+            half_aircraft_lift = safe_total_weight / 2;
+        
+            % beam takes only its assigned fraction of that side's lift
+            beam_lift = obj.lift_split * half_aircraft_lift;
+        
+            % area under triangular load = beam_lift
+            obj.intercept = (2 * beam_lift) / obj.beamlength;
 
-             % area under triangular load = halfspan load
-            obj.intercept = (2 * halfspan_load) / obj.beamlength; %note that then height is also the y intercept 
 
             %equation of the triangdistrload: 
             obj.gradient = -obj.intercept/obj.beamlength; %this equation only works if the TDL is over the whole half span (which it is in this case)
 
             %area of triangle represents the 'effective' force 
-            obj.effective_triangular_force = 0.5*height_of_triangle*obj.beamlength;
+            obj.effective_triangular_force = 0.5*obj.intercept*obj.beamlength;
 
-            %the point at which this force acts: 1/3 from the root of beam or cut
-            obj.x_effective_force = obj.beamlength / 3; 
-            
+            obj.x_effective_force = obj.beamlength / 3; %the point at which this force acts: 1/3 from the root of beam or cut
+
             obj.load_factor = n;
         end
 
-        function obj = reaction_shear(obj, Rt, x_Rt)
-            obj.Rt = Rt; 
-            obj.x_Rt = x_Rt;
-            obj.S_r =  Rt - obj.effective_triangular_force;
-        end 
         %this function shows the tip force that is used to represent the coupled deflection between the top and bottom wing tips.
         function obj = setTipForce(obj, Rt, Rt_sign)
             obj.Rt = Rt;
@@ -92,12 +90,12 @@ classdef beamproperties
 
         %this funciton calcultes the reaciton shear and moment
         function obj = reactionLoads(obj)
-            obj.S_r = obj.effective_triangular_force + obj.Rt_sign * obj.Rt;
+            obj.S_r = -(obj.effective_triangular_force + obj.Rt_sign * obj.Rt);
             obj.M_r = obj.effective_triangular_force * obj.x_effective_force + ...
                       obj.Rt_sign * obj.Rt * obj.beamlength;
         end
         
-
+%% take a cut
         %when a cut is taken it will take that x value and put into the
         %triangular load equation to calculate the highest load value in
         %that triangular distributed load
@@ -124,7 +122,7 @@ classdef beamproperties
         % Calcultes shear equation of the cut section
         function S = shearAt(obj, x)
             Ftri = obj.remainingTriangularForce(x);
-            S = Ftri + obj.Rt_sign * obj.Rt;
+            S = -(Ftri + obj.Rt_sign * obj.Rt);
         end
         
 
