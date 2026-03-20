@@ -32,7 +32,7 @@ opts_quiet = optimoptions('fmincon', ...
 %%  MINIMISE DOC   (SAF locked at 100%)
 fprintf('\n');
 fprintf('╔════════════════════════════════════════════════════════════╗\n');
-fprintf('║           RUN 1 — MINIMISE DOC  (SAF = 100%%)              ║\n');
+fprintf('║           RUN 1 — MINIMISE DOC  (SAF = 100%%)               ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
 % Lock SAF = 1.0 by tightening its bounds
@@ -63,7 +63,7 @@ fprintf('  Exit flag       : %d\n',            flag1);
 %%  MINIMISE ATR100
 fprintf('\n');
 fprintf('╔════════════════════════════════════════════════════════════╗\n');
-fprintf('║           RUN 2 — MINIMISE ATR100                         ║\n');
+fprintf('║           RUN 2 — MINIMISE ATR100                          ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
 obj_ATR = @(x) mdo_wrapper(x, 'ATR', N_FLIGHTS);
@@ -97,7 +97,7 @@ fprintf('  Exit flag       : %d\n',            flag2);
 
 fprintf('\n');
 fprintf('╔════════════════════════════════════════════════════════════╗\n');
-fprintf('║      RUN 3a — PARETO FRONT: WEIGHTED SUM (15 points)      ║\n');
+fprintf('║      RUN 3a — PARETO FRONT: WEIGHTED SUM                   ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
 DOC_ref = DOC_at1;    % best achievable DOC  (normalisation anchor)
@@ -105,7 +105,7 @@ ATR_ref = ATR_at2;    % best achievable ATR  (normalisation anchor)
 fprintf('  Normalisation: DOC_ref = $%.2f M,  ATR_ref = %.4e K\n\n', ...
         DOC_ref/1e6, ATR_ref);
 
-n_ws      = 15;
+n_ws      = 5;
 w_vals    = linspace(0, 1, n_ws);   % sweep from pure ATR to pure DOC
 
 pareto_DOC_ws = nan(1, n_ws);
@@ -147,7 +147,7 @@ end
 
 fprintf('\n');
 fprintf('╔════════════════════════════════════════════════════════════╗\n');
-fprintf('║      RUN 3b — PARETO FRONT: ε-CONSTRAINT (15 points)      ║\n');
+fprintf('║      RUN 3b — PARETO FRONT: ε-CONSTRAINT                   ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
 % ε values: evenly spaced from tightest (min-DOC) to loosest (min-ATR DOC)
@@ -367,6 +367,7 @@ ADP.Mf_TOC  = 0.98;
 % Run MDO inner loop
 try
     [ADP, sizing_out] = BoxWing.B777.Size(ADP, false);
+    % [BoxGeom, BoxMass] = BoxWing.B777.BuildGeometry(ADP);
 catch
     J = PENALTY;
     return;
@@ -433,7 +434,7 @@ SAF_ratio = min(max(x(5), 0), 1);
 Range_m   = x(6) * 1e3;
 
 ADP = BoxWing.B777.ADP();
-ADP.TLAR              = BoxWing.cast.TLAR.TubeWing();
+ADP.TLAR              = BoxWing.cast.TLAR.Boxwing();
 ADP.TLAR.M_c          = M_c;
 ADP.TLAR.Alt_cruise   = Alt_m;
 ADP.TLAR.Alt_max      = max(Alt_m + 500, ADP.TLAR.Alt_max);
@@ -460,6 +461,6 @@ T_max_kN = ADP.Engine.T_Static / 1000;
     ADP.MTOM/1e3, ADP.OEM, sizing_out.BlockFuel, ...
     N_fleet, SAF_ratio, M_c, T_max_kN);
 
-[ATR, atr_bd] = BoxWing.script.ClimateImpact( ...
+[ATR, atr_bd] = BoxWing.script.ClimateImpact_trial( ...
     ADP, sizing_out.BlockFuel, N_fleet, n_flights, SAF_ratio);
 end
