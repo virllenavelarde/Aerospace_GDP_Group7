@@ -53,7 +53,7 @@ function engine_code_analysis()
     fuel_cruise = (w_start_cruise - w3) / g;
 
     % Approach
-    ff_app = 0.992;
+    ff_app = 0.990;
     w4 = w3 * ff_app;
     fuel_app = (w3 - w4) / g;
 
