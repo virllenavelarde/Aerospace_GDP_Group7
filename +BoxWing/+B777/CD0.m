@@ -19,8 +19,10 @@ function [CD0_total, breakdown] = CD0(obj, B7Geom)
 
     % =========================================================
     % ATMOSPHERE / CRUISE CONDITION
+    % FIX: cast.atmos → BoxWing.cast.atmos
+    %      atmos.m lives at +BoxWing/+cast/atmos.m so the correct
     % =========================================================
-    [rho, a, ~, ~, mu] = cast.atmos(obj.TLAR.Alt_cruise);
+    [rho, a, ~, ~, mu] = BoxWing.cast.atmos(obj.TLAR.Alt_cruise);
     V = obj.TLAR.M_c * a;
     M = obj.TLAR.M_c;
 
@@ -153,59 +155,49 @@ function [CD0_total, breakdown] = CD0(obj, B7Geom)
         L_nac = obj.Engine.Length;
     else
         % statistical estimate for large turbofan (BPR~8, B777-class)
-        % d ~ 0.033*sqrt(T_engine[kN])  from Raymer statistical data
         T_total  = obj.ThrustToWeightRatio * obj.MTOM * 9.81;
-        T_engine = T_total / 2;                    % 2 engines
-        d_nac    = 0.033 * sqrt(T_engine/1000);    % m
-        L_nac    = 1.5 * d_nac;                    % fineness ratio ~1.5
+        T_engine = T_total / 2;
+        d_nac    = 0.033 * sqrt(T_engine/1000);
+        L_nac    = 1.5 * d_nac;
         warning('B777.CD0: Engine dims not found, using statistical d=%.2fm L=%.2fm', ...
                 d_nac, L_nac);
     end
 
     f_nac    = L_nac / d_nac;
-    FF_nac   = 1 + 0.35/f_nac;                    % Raymer eq 12.32
-    S_wet_nac = pi * d_nac * L_nac;               % per nacelle, cylinder approx
+    FF_nac   = 1 + 0.35/f_nac;
+    S_wet_nac = pi * d_nac * L_nac;
     Re_nac   = rho * V * L_nac / mu;
     Cf_nac   = getCf(Re_nac, M);
-    Q_nac    = 1.30;   % wing-mounted podded -- Raymer table 12.6
+    Q_nac    = 1.30;
     n_eng    = 2;
 
     CD0_nac  = Cf_nac * FF_nac * Q_nac * (n_eng * S_wet_nac / S_ref);
 
     % =========================================================
     % 4. TAIL CD0  (HTP + VTP)
-    % Same flat-plate + Raymer FF as wing
-    % tc_tail = 0.10, sweep_tail = 25 deg -- typical transport tail
-    % Q = 1.05 for tail-fuselage junction -- Raymer table 12.6
     % =========================================================
     tc_tail         = 0.10;
-    x_tc_tail       = 0.30;   % NACA 4-series tail: max t at 30% chord
+    x_tc_tail       = 0.30;
     Lambda_tail_rad = deg2rad(25.0);
 
     FF_tail = (1 + (0.6/x_tc_tail)*tc_tail + 100*tc_tail^4) * ...
               (1.34 * M^0.18 * cos(Lambda_tail_rad)^0.28);
 
-    % HTP area
     if isprop(obj,'HtpArea') && ~isempty(obj.HtpArea) && isfinite(obj.HtpArea)
         S_HTP = obj.HtpArea;
     else
-        % estimate from horizontal tail volume coefficient
-        % V_HT = S_HTP * L_HT / (S_ref * c_ref)
         L_HT  = obj.HtpPos - obj.WingPos;
         S_HTP = obj.V_HT * S_ref * c_ref / L_HT;
         warning('B777.CD0: HtpArea not found, estimating from V_HT = %.5f m^2', S_HTP);
     end
     S_wet_HTP = 2.0 * S_HTP * (1 + 0.2*tc_tail);
-    Re_HTP    = rho * V * sqrt(S_HTP) / mu;   % sqrt(S_HTP) as ref length
+    Re_HTP    = rho * V * sqrt(S_HTP) / mu;
     Cf_HTP    = getCf(Re_HTP, M);
     CD0_HTP   = Cf_HTP * FF_tail * 1.05 * (S_wet_HTP/S_ref);
 
-    % VTP area
     if isprop(obj,'VtpArea') && ~isempty(obj.VtpArea) && isfinite(obj.VtpArea)
         S_VTP = obj.VtpArea;
     else
-        % estimate from vertical tail volume coefficient
-        % V_VT = S_VTP * L_VT / (S_ref * b)
         L_VT  = obj.VtpPos - obj.WingPos;
         S_VTP = obj.V_VT * S_ref * b / L_VT;
         warning('B777.CD0: VtpArea not found, estimating from V_VT = %.5f m^2', S_VTP);

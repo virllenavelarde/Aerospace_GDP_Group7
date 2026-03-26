@@ -1,37 +1,22 @@
 function WSmax_ceiling_lbft2 = Ceiling(obj)
-%Ceiling  Wing-loading limit from level-flight ceiling condition.
+%CEILING  Cruise ceiling constraint  —  returns max W/S in lb/ft²
 %
-% Corke-style: W/S = CL * q, with q = 0.5*rho*(M*a)^2
-% Returns WSmax at the chosen ceiling altitude (usually cruise altitude or Alt_max).
-%
-% Output:
-%   WSmax_ceiling_lbft2  [lb/ft^2]
+%  Level flight at ceiling altitude: WS = CL * q
+%  FIX: cast.atmos → BoxWing.cast.atmos
 
-    % Choose altitude for "ceiling" check:
-    % Option A: use max altitude requirement
-    if ~isempty(obj.TLAR.Alt_max)
-        h = obj.TLAR.Alt_max;         % [m]
-    else
-        h = obj.TLAR.Alt_cruise;      % [m] fallback
-    end
+% Altitude: use Alt_max if defined, else cruise altitude
+if isfield(obj.TLAR, 'Alt_max') && ~isempty(obj.TLAR.Alt_max)
+    h = obj.TLAR.Alt_max;
+else
+    h = obj.TLAR.Alt_cruise;
+end
 
-    % Choose Mach for ceiling check
-    M = obj.TLAR.M_c;                 % [-]
+M         = obj.TLAR.M_c;
+CL_ceiling = 1.0;   % Corke: CL~1.0 for ceiling sizing
 
-    % Choose CL used for ceiling sizing (Corke suggests ~1.0 to 1.5)
-    CL_ceiling = 1.0;                 % [-] set as a hyperparameter if you want
+[rho, a] = BoxWing.cast.atmos(h);
+q = 0.5 * rho * (M * a)^2;
 
-    % ISA conditions
-    dT = 0;
-
-    % Atmosphere
-    [rho, a, ~, ~, ~, ~, ~] = cast.atmos(h, dT);
-
-    % Dynamic pressure at that altitude and Mach
-    V = M * a;
-    q = 0.5 * rho * V^2;              % [Pa] = [N/m^2]
-
-    % W/S in SI then convert to lb/ft^2
-    WSmax_SI = CL_ceiling * q;        % [Pa]
-    WSmax_ceiling_lbft2 = WSmax_SI * SI.lbft;
+WSmax_SI            = CL_ceiling * q;            % [N/m²]
+WSmax_ceiling_lbft2 = WSmax_SI   * 0.020885;     % N/m² → lb/ft²
 end
