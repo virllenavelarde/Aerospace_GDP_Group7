@@ -1,22 +1,4 @@
-function [DOC, breakdown, no_landings] = DOC(MTOM_t, OEM_kg, BlockFuel_kg, ...
-                                 fleet_size, SAF_ratio, M_c, T_max_kN)
-%DOC  Direct Operating Cost for the Boxwing F1 freighter fleet.
-%     Uses DAPCA-IV (Raymer 2018) financial model + Eurocontrol nav charges.
-%     Primary case: Ownership, Method B hull, CPI 2012.
-%
-%  INPUTS:
-%    MTOM_t       [tonnes]    Maximum take-off mass
-%    OEM_kg       [kg]        Operational empty mass
-%    BlockFuel_kg [kg]        Block fuel per flight
-%    fleet_size   [-]         Number of aircraft
-%    SAF_ratio    [0-1]       SAF blend fraction (0=kerosene, 1=full SAF)
-%    M_c          [-]         Cruise Mach number
-%    T_max_kN     [kN]        Max thrust per engine
-%
-%  OUTPUT:
-%    DOC          [$/season]  Total fleet DOC (ownership, Method B)
-%    breakdown    struct      Itemised cost breakdown
-
+function [DOC, breakdown, no_landings] = DOC(MTOM_t, OEM_kg, BlockFuel_kg, fleet_size, SAF_ratio, M_c, T_max_K)
 %% ── Fixed mission parameters (F1 freight schedule) ──────────────────────
 leg_distances_km = [16847, 8018, 1457, 8052, 1272, 11621, 2264, ...
                      6129,  957, 4462, 6940, 15821, 1204,  7433, ...
@@ -31,19 +13,18 @@ no_landings        = length(leg_distances_km) + refuel_stops;
 no_days_parking    = 193;
 Ne                 = 2;    % number of engines
 N_ft               = 2;    % flight test aircraft
-N_ownership        = fleet_size;
+N_ownership        = 1;
 N_leasing          = 50;
 aircraft_life_yr   = 20;
-
-%% ── Derived parameters ───────────────────────────────────────────────────
+%% Derived parameters 
 M_e    = OEM_kg;                     % [kg] empty mass for DAPCA
 V_max  = cruise_speed_kmh;           % [km/h] max speed proxy
-T_3    = 1000;                       % [K] turbine inlet temp (fixed)
+T_3    = T_max_K;                       % [K] turbine inlet temp (fixed)
 eta_M  = 1.2;                        % CFRP material factor
 eta_MRO = 1.3;                       % novelty maintenance multiplier
 LRF    = 0.0090;                     % lease rate factor [/month]
-
-%% ── Cash Operating Costs ─────────────────────────────────────────────────
+ICAO_taxi_configuration = 'E';       % ICAO taxiway configuration (C, D, E, F)
+%% Cash Operating Costs 
 % Crew
 crew_cost   = 150000 * 4 * fleet_size;
 
@@ -57,7 +38,16 @@ fuel_cost          = fuel_price_per_L * fuel_L_per_season * fleet_size;
 land_cost   = 25 * MTOM_t * no_landings * fleet_size;
 
 % Parking fees (ICAO Code E)
-park_cost   = 4000 * no_days_parking * fleet_size;
+if ICAO_taxi_configuration == 'C'
+    parking_fee_per_day = 1000; % $ per day for configuration C
+elseif ICAO_taxi_configuration == 'D'
+    parking_fee_per_day = 2000; % $ per day for configuration D
+elseif ICAO_taxi_configuration == 'E'
+    parking_fee_per_day = 4000; % $ per day for configuration D
+elseif ICAO_taxi_configuration == 'F'
+    parking_fee_per_day = 6000; % $ per day for configuration D
+end
+park_cost = parking_fee_per_day * no_days_parking * fleet_size; % $ per year
 
 % Navigation charges (Eurocontrol)
 nav_unit    = 90;
@@ -66,7 +56,7 @@ nav_charges = sum(nav_unit * (leg_distances_km/100) * nav_weight) * fleet_size;
 
 COC = crew_cost + fuel_cost + land_cost + park_cost + nav_charges;
 
-%% ── DAPCA-IV acquisition cost ────────────────────────────────────────────
+%% DAPCA-IV acquisition cost 
 R_E = 115; R_T = 118; R_M = 98; R_Q = 108;  % labour rates [$/hr]
 eta_cpi = 1.43;   % CPI 2012 inflation factor
 
@@ -77,35 +67,33 @@ H_Q = 0.076 * H_M;
 C_m = 31.2  * M_e^0.921 * V_max^0.621 * N_ownership^0.799;
 C_D = 67.4  * M_e^0.63  * V_max^1.3;
 C_F = 1947  * M_e^0.325 * V_max^0.822 + N_ft^1.21;
-C_E = 3112  * (9.66*T_max_kN + 243.25*M_c + 1.74*T_3 - 2228);
+C_E = 3112  * (9.66*T_max_K + 243.25*M_c + 1.74*T_3 - 2228);
 
 labour       = (H_E*R_E + H_T*R_T + H_M*R_M + H_Q*R_Q) * eta_M;
 total_init   = (C_E + C_m + C_F + C_D + labour) * eta_cpi;
-cost_per_ac  = total_init / N_ownership;
+cost_per_ac  = total_init / fleet_size;
 
 Ca = cost_per_ac - C_E*eta_cpi*N_ft;   % airframe cost ex-engines
 Ce = C_E * eta_cpi;                     % per-engine cost
 
-%% ── Hull value (Method B: DAPCA + 15% margin) ───────────────────────────
+%% Hull value (Method B: DAPCA + 15% margin) 
 V_hull = cost_per_ac * 1.15;
 
-%% ── Maintenance (Raymer Eq 18.12/18.13) ─────────────────────────────────
+%% Maintenance (Raymer Eq 18.12/18.13) 
 maint_per_FH    = 3.3*(Ca/1e6) + 14.2 + (58*(Ce/1e6) - 26.1)*Ne;
 maint_per_cycle = 4.0*(Ca/1e6) + 9.3  + (7.5*(Ce/1e6) + 5.6)*Ne;
-maint_cost = eta_MRO * ...
-    (maint_per_FH*total_flight_hours + maint_per_cycle*no_landings) ...
-    * fleet_size;
+maint_cost = eta_MRO * (maint_per_FH*total_flight_hours + maint_per_cycle*no_landings) * fleet_size;
 
-%% ── Financial Costs ──────────────────────────────────────────────────────
-dep_cost = total_init / aircraft_life_yr;
+%%  Financial Costs 
+dep_cost = total_init /(14*fleet_size*total_flight_hours); % aircraft_life_yr;
 int_cost = 0.05 * total_init;
 ins_cost = 0.006 * V_hull * fleet_size;
 FC       = dep_cost + int_cost + ins_cost;
 
-%% ── Total DOC ────────────────────────────────────────────────────────────
+%%  Total DOC 
 DOC = COC + maint_cost + FC;
 
-%% ── Breakdown struct ─────────────────────────────────────────────────────
+%%  Breakdown struct 
 breakdown = struct( ...
     'crew',        crew_cost, ...
     'fuel',        fuel_cost, ...
