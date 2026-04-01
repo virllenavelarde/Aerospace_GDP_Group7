@@ -1,10 +1,12 @@
-function [DOC, breakdown, no_landings] = DOC(MTOM_t, OEM_kg, BlockFuel_kg, fleet_size, SAF_ratio, M_c, T_max_K)
+function [DOC, breakdown, no_landings, total_init, labour, V_max] = DOC(MTOM_t, OEM_kg, BlockFuel_kg, fleet_size, SAF_ratio, M_c, T_max_K)
 %% ── Fixed mission parameters (F1 freight schedule) ──────────────────────
 leg_distances_km = [16847, 8018, 1457, 8052, 1272, 11621, 2264, ...
                      6129,  957, 4462, 6940, 15821, 1204,  7433, ...
                      9782, 13053,  321, 5454];
 
-cruise_speed_kmh   = M_c * 1116;   % approx TAS at FL350 ISA [km/h]
+% [~,a,~,~,~,~,~] = atmos(10670);
+sound_speed_kmh = 1062; % a * SI.km * SI.hr;  % convert m/s to km/h
+cruise_speed_kmh   = M_c * sound_speed_kmh;   
 block_overhead     = 1.12;
 total_distance_km  = sum(leg_distances_km);
 total_flight_hours = (total_distance_km / cruise_speed_kmh) * block_overhead;
@@ -14,16 +16,14 @@ no_days_parking    = 193;
 Ne                 = 2;    % number of engines
 N_ft               = 2;    % flight test aircraft
 N_ownership        = 1;
-N_leasing          = 50;
-aircraft_life_yr   = 20;
 %% Derived parameters 
 M_e    = OEM_kg;                     % [kg] empty mass for DAPCA
 V_max  = cruise_speed_kmh;           % [km/h] max speed proxy
 T_3    = T_max_K;                       % [K] turbine inlet temp (fixed)
 eta_M  = 1.2;                        % CFRP material factor
 eta_MRO = 1.3;                       % novelty maintenance multiplier
-LRF    = 0.0090;                     % lease rate factor [/month]
 ICAO_taxi_configuration = 'E';       % ICAO taxiway configuration (C, D, E, F)
+T_max_kN = 370;                     % [kN] max thrust (fixed)
 %% Cash Operating Costs 
 % Crew
 crew_cost   = 150000 * 4 * fleet_size;
@@ -67,7 +67,7 @@ H_Q = 0.076 * H_M;
 C_m = 31.2  * M_e^0.921 * V_max^0.621 * N_ownership^0.799;
 C_D = 67.4  * M_e^0.63  * V_max^1.3;
 C_F = 1947  * M_e^0.325 * V_max^0.822 + N_ft^1.21;
-C_E = 3112  * (9.66*T_max_K + 243.25*M_c + 1.74*T_3 - 2228);
+C_E = 3112  * (9.66*T_max_kN + 243.25*M_c + 1.74*T_3 - 2228);
 
 labour       = (H_E*R_E + H_T*R_T + H_M*R_M + H_Q*R_Q) * eta_M;
 total_init   = (C_E + C_m + C_F + C_D + labour) * eta_cpi;
@@ -87,7 +87,7 @@ maint_cost = eta_MRO * (maint_per_FH*total_flight_hours + maint_per_cycle*no_lan
 %%  Financial Costs 
 dep_cost = total_init /(14*fleet_size*total_flight_hours); % aircraft_life_yr;
 int_cost = 0.05 * total_init;
-ins_cost = 0.006 * V_hull * fleet_size;
+ins_cost = 0.006 * V_hull; % * fleet_size;
 FC       = dep_cost + int_cost + ins_cost;
 
 %%  Total DOC 
