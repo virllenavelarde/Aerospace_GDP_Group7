@@ -12,8 +12,8 @@ function engine_code_analysis()
 
     % Propulsion Profile
     eng_fn0 = 362300;             
-    eng_sfc_a = 1.41e-5;          
-    eng_sfc_b = 0.48e-5;          
+    eng_sfc_a = 1.41e-5;
+    eng_sfc_b = 0.22e-5;      
 
     % Mission 
     range_km = 10132;        
