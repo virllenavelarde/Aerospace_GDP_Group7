@@ -1,10 +1,10 @@
-function engine_code_analysis()
+function [ATR100, climate_bd, total_fuel_burn] = Engine_code(MTOM, OEW, s_ref, ar, range_km,  mach)
     % Global Parameters
-    m_tom = 327503.3;             
-    m_oew = 129000;               
-    m_payload = 92000;            
-    s_ref = 422.5;                
-    ar = 10.0;                    
+    m_tom = MTOM;             
+    m_oew = OEW;               
+    m_payload = m_tom - m_oew;            
+    %s_ref = s_ref;                
+    %ar = ar;                    
     e_app = 1.80;                 
     cd0 = 0.0221;                 
     k = 1 / (pi * ar * e_app);    
@@ -16,9 +16,9 @@ function engine_code_analysis()
     eng_sfc_b = 0.48e-5;          
 
     % Mission 
-    range_km = 10132;        
+    % range_km = range;        
     alt_m = 10668;                
-    mach = 0.80;                  
+    % mach = 0.80;                  
 
     [T_cruise, a_cruise, p_cruise, rho_cruise] = atmosisa(alt_m);
     [T_sl, a_sl, p_sl, rho_sl] = atmosisa(0);
@@ -84,7 +84,11 @@ function engine_code_analysis()
     atr100_contrail = range_km * a_contrail_km; 
     
     atr100_total = atr100_co2 + atr100_nox + atr100_h2o + atr100_contrail;
-
+    ATR100 = atr100_total;
+    climate_bd.ATR_CO2 = atr100_co2;
+    climate_bd.ATR_NOx = atr100_nox;
+    climate_bd.ATR_H2O = atr100_h2o;    
+    climate_bd.ATR_AIC = atr100_contrail;
     % Propulsion Scaling
     t_ref = 374500;
     w_ref = 7277;

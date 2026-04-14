@@ -1,20 +1,21 @@
-clear; clc;
+function [results] = MissionAnalysisPM(fleet, M_c, cruise_altitude, MTOW, target_range)
 %% PARAMETERS 
+[~,a,~,~,~,~,~] = BoxWing.cast.atmos(cruise_altitude,0);
 p = struct();
 
-p.num_aircraft          = 6;         % [-]    Number of aircraft in fleet
-p.cruise_speed_kmh      = 900;       % [km/h] Cruise ground speed
-p.cruise_altitude_ft    = 35000;     % [ft]   Cruise altitude
-p.max_payload_t         = 130;       % [t]    Max structural payload
-p.actual_payload_t      = 123;       % [t]    Assumed payload per loaded leg
-p.fuel_burn_kg_hr       = 8000;      % [kg/h] Fuel burn rate         *** SET ***
-p.MTOW_kg               = 380000;    % [kg]   Max Take-Off Weight    *** SET ***
-p.OEW_kg                = p.MTOW_kg - p.max_payload_t * 1000;       % [kg]   Operating Empty Weight *** SET ***
+p.num_aircraft          = fleet;            % [-]    Number of aircraft in fleet
+p.cruise_speed_kmh      = M_c * a * 3600/1000;   % [km/h] Cruise ground speed
+p.cruise_altitude_ft    = cruise_altitude;  % [ft]   Cruise altitude
+p.actual_payload_t      = 736/fleet;        % [t]    Assumed payload per loaded leg
+% p.fuel_burn_kg_hr       = fuel_burn_kg_hr;  % [kg/h] Fuel burn rate         *** SET ***
+p.MTOW_kg               = MTOW;             % [kg]   Max Take-Off Weight    *** SET ***
+% p.OEW_kg                = OEW;              % [kg]   Operating Empty Weight *** SET ***
+% p.max_payload_t         = MTOW - OEW;       % [t]    Max structural payload
 
 % Mission Rules and Assumptions
-p.refuel_range_km       = 8500;      % [km]   Distance threshold → refuel stop (ADJUSTABLE)
-p.refuel_stop_hr        = 2.0;       % [hr]   Duration of each refuel stop
-p.warn_margin_hr        = 6.0;       % [hr]   Warn if time margin falls below this
+p.refuel_range_km       = target_range;     % [km]   Distance threshold → refuel stop (ADJUSTABLE)
+p.refuel_stop_hr        = 2.0;              % [hr]   Duration of each refuel stop
+p.warn_margin_hr        = 6.0;              % [hr]   Warn if time margin falls below this
 
 
 %% TIMEZONE MAP 
@@ -200,12 +201,12 @@ tight_legs    = find(tight_mask);
 %% OUTPUTS
 dt_fmt = 'dd/MM HH:mm';
 
-fprintf('\n________________________________________________________\n');
-fprintf(' PER-LEG MISSION SUMMARY  (all times UK Local = GMT/BST)\n');
-fprintf('________________________________________________________\n');
-fprintf('%-4s %-30s %7s %3s  %-13s %-13s %6s %5s %5s %7s %5s %5s\n', 'Leg','Route','Dist km','Stp', ...
-    'Dep  (UK)','Del  (UK)', 'Win h','Flt h','Blk h','Margin h','TA h','Land');
-fprintf('%s\n', repmat('-', 1, 104));
+% fprintf('\n________________________________________________________\n');
+% fprintf(' PER-LEG MISSION SUMMARY  (all times UK Local = GMT/BST)\n');
+% fprintf('________________________________________________________\n');
+% fprintf('%-4s %-30s %7s %3s  %-13s %-13s %6s %5s %5s %7s %5s %5s\n', 'Leg','Route','Dist km','Stp', ...
+%     'Dep  (UK)','Del  (UK)', 'Win h','Flt h','Blk h','Margin h','TA h','Land');
+% fprintf('%s\n', repmat('-', 1, 104));
 
 for i = 1:N
     r   = results(i);
@@ -223,52 +224,52 @@ for i = 1:N
         flags = [flags '  ** TIGHT **']; 
     end
 
-    fprintf('%-4d %-30s %7.0f %3d  %-13s %-13s %6.1f %5.1f %5.1f %7.1f %5.1f %5d%s\n', ...
-        i-1, lbl, r.dist_km, r.num_refuel_stops, ...
-        char(r.dep_UK, dt_fmt), char(r.del_UK, dt_fmt), ...
-        r.window_hr, r.flight_hr, r.block_time_hr, ...
-        r.time_margin_hr, r.turnaround_hr, r.num_landings, flags);
+    % fprintf('%-4d %-30s %7.0f %3d  %-13s %-13s %6.1f %5.1f %5.1f %7.1f %5.1f %5d%s\n', ...
+      %   i-1, lbl, r.dist_km, r.num_refuel_stops, ...
+      %  char(r.dep_UK, dt_fmt), char(r.del_UK, dt_fmt), ...
+      %   r.window_hr, r.flight_hr, r.block_time_hr, ...
+      %   r.time_margin_hr, r.turnaround_hr, r.num_landings, flags);
 end
 
-fprintf('\n________________________________________________________\n');
-fprintf(' PARKING BLOCKS  (aircraft at last air-freight airport)\n');
-fprintf('________________________________________________________\n');
-for k = 1:numel(park)
-    fprintf('\n%s\n', park(k).name);
-    fprintf('  Covers  : %s\n',  park(k).races);
-    fprintf('  Start   : %s (UK local)\n', char(park(k).start_UK, 'dd-MMM-yyyy HH:mm z'));
-    fprintf('  End     : %s (UK local)\n', char(park(k).end_UK,   'dd-MMM-yyyy HH:mm z'));
-    fprintf('  Duration: %.1f days\n',     park(k).days);
-    fprintf('  Fleet   : %d aircraft  →  %.0f aircraft-days\n', park(k).n_ac, park(k).ac_days);
-end
-fprintf('\n  TOTAL parking: %.0f aircraft-days across %d blocks\n', total_ac_days, numel(park));
+% fprintf('\n________________________________________________________\n');
+% fprintf(' PARKING BLOCKS  (aircraft at last air-freight airport)\n');
+% fprintf('________________________________________________________\n');
+% for k = 1:numel(park)
+%     fprintf('\n%s\n', park(k).name);
+%     fprintf('  Covers  : %s\n',  park(k).races);
+%     fprintf('  Start   : %s (UK local)\n', char(park(k).start_UK, 'dd-MMM-yyyy HH:mm z'));
+%     fprintf('  End     : %s (UK local)\n', char(park(k).end_UK,   'dd-MMM-yyyy HH:mm z'));
+%     fprintf('  Duration: %.1f days\n',     park(k).days);
+%     fprintf('  Fleet   : %d aircraft  →  %.0f aircraft-days\n', park(k).n_ac, park(k).ac_days);
+% end
+% fprintf('\n  TOTAL parking: %.0f aircraft-days across %d blocks\n', total_ac_days, numel(park));
 
-fprintf('\n________________________________________________________\n');
-fprintf(' SEASON TOTALS\n');
-fprintf('________________________________________________________\n');
-fprintf('  Total legs defined          : %d\n',        N);
-fprintf('  Total season distance       : %8.0f km\n',  tot_dist);
-fprintf('  Total pure flight time      : %8.1f hr   (%.1f days)\n', tot_flt_hr, tot_flt_hr/24);
-fprintf('  Total block time            : %8.1f hr   (flight + refuel stops)\n', tot_blk_hr);
-fprintf('  Total landings (all acft.)  : %8d\n',       tot_lands);
-fprintf('  Legs requiring refuel stop  : %8d   ', numel(legs_refueled));
-if ~isempty(legs_refueled)
-    fprintf('(Legs: %s)', strjoin(arrayfun(@(x) sprintf('%02d',x-1), ...
-        legs_refueled, 'UniformOutput', false), ', '));
-end
-fprintf('\n');
-fprintf('  Total refuel stops          : %8d\n',   tot_refuels);
-fprintf('  Loaded distance             : %8.0f km  (%.0f%%)\n', loaded_dist, 100*loaded_dist/tot_dist);
-fprintf('  Empty ferry distance        : %8.0f km  (%.0f%% deadhead)\n', empty_dist, deadhead_pct);
-fprintf('  Unique airports visited     : %8d\n',   uniq_airports);
-fprintf('  Parking (total acft-days)   : %8.0f\n', total_ac_days);
-if ~isempty(tight_legs)
-    fprintf('\n  ** WARNING: %d leg(s) with time margin < %.0f hr (legs: %s)\n', ...
-        numel(tight_legs), p.warn_margin_hr, ...
-        strjoin(arrayfun(@(x) sprintf('%02d',x-1), tight_legs, 'UniformOutput', false), ', '));
-    fprintf('     Review schedule or increase cruise speed for these legs.\n');
-end
-fprintf('________________________________________________________\n\n');
+% fprintf('\n________________________________________________________\n');
+% fprintf(' SEASON TOTALS\n');
+% fprintf('________________________________________________________\n');
+% fprintf('  Total legs defined          : %d\n',        N);
+% fprintf('  Total season distance       : %8.0f km\n',  tot_dist);
+% fprintf('  Total pure flight time      : %8.1f hr   (%.1f days)\n', tot_flt_hr, tot_flt_hr/24);
+% fprintf('  Total block time            : %8.1f hr   (flight + refuel stops)\n', tot_blk_hr);
+% fprintf('  Total landings (all acft.)  : %8d\n',       tot_lands);
+% fprintf('  Legs requiring refuel stop  : %8d   ', numel(legs_refueled));
+% if ~isempty(legs_refueled)
+%     fprintf('(Legs: %s)', strjoin(arrayfun(@(x) sprintf('%02d',x-1), ...
+%         legs_refueled, 'UniformOutput', false), ', '));
+% end
+% fprintf('\n');
+% fprintf('  Total refuel stops          : %8d\n',   tot_refuels);
+% fprintf('  Loaded distance             : %8.0f km  (%.0f%%)\n', loaded_dist, 100*loaded_dist/tot_dist);
+% fprintf('  Empty ferry distance        : %8.0f km  (%.0f%% deadhead)\n', empty_dist, deadhead_pct);
+% fprintf('  Unique airports visited     : %8d\n',   uniq_airports);
+% fprintf('  Parking (total acft-days)   : %8.0f\n', total_ac_days);
+% if ~isempty(tight_legs)
+%     fprintf('\n  ** WARNING: %d leg(s) with time margin < %.0f hr (legs: %s)\n', ...
+%         numel(tight_legs), p.warn_margin_hr, ...
+%         strjoin(arrayfun(@(x) sprintf('%02d',x-1), tight_legs, 'UniformOutput', false), ', '));
+%     fprintf('     Review schedule or increase cruise speed for these legs.\n');
+% end
+% fprintf('________________________________________________________\n\n');
 
 
 %% EXPORT TO CSV
@@ -294,14 +295,5 @@ T.Turnaround_hr= [results.turnaround_hr]';
 T.Notes        = {results.notes}';
 
 writetable(T, 'F1_2026_MissionAnalysis.csv');
-% fprintf('Results saved  →  F1_2026_MissionAnalysis.csv\n');
-% fprintf('Workspace vars →  ''results''  (1×%d struct) and ''park''  (1×%d struct)\n', N, numel(park));
-% fprintf('                  ''p''        (parameter struct) — pass into downstream loops\n\n');
+end
 
-% Quick downstream loop template
-% for i = 1:numel(results)
-%     if ~isnan(p.fuel_burn_kg_hr)
-%         results(i).fuel_kg = results(i).block_time_hr * p.fuel_burn_kg_hr;
-%         results(i).CO2_kg  = results(i).fuel_kg * 3.16;  % Jet-A: ~3.16 kg CO2/kg fuel
-%     end
-% end

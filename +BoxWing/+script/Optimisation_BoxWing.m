@@ -1,10 +1,10 @@
 clear; clc; close all;
 
 %% BOUNDS, INITIAL POINT, SHARED OPTIONS
-%          N     M_c   Span   Alt   SAF   Range_km
-lb = [     3,   0.80,   45,  10.5,   0,    5000 ];
-ub = [    10,   0.92,   65,  12.5,   1,   16000 ];
-x0 = [     5,   0.85,   60,  11.5,   1.0,  8000 ];  % nominal design
+%          N     M_c   Span   Alt   SAF   Range_km  MTOM_t
+lb = [     2,   0.80,   40,  10.0,   0,    5000     100];
+ub = [    20,   0.92,   65,  15.5,   1,   17000     300];
+x0 = [     5,   0.85,   60,  11.0,   1.0,  8000     800];  % nominal design
 
 N_FLIGHTS = 23; % N_FLIGHTS: THIS HAS TO BE LINKED TO MISSION ANALYSIS PM
  
@@ -12,17 +12,17 @@ N_FLIGHTS = 23; % N_FLIGHTS: THIS HAS TO BE LINKED TO MISSION ANALYSIS PM
 opts_verbose = optimoptions('fmincon', ...
     'Algorithm',              'sqp', ...
     'Display',                'iter', ...
-    'MaxFunctionEvaluations', 10, ...
-    'MaxIterations',          10, ...   
-    'OptimalityTolerance',    1e-4, ...
+    'MaxFunctionEvaluations', 500, ...
+    'MaxIterations',          50, ...   
+    'OptimalityTolerance',    1e-3, ...
     'StepTolerance',          1e-5);
 
 opts_quiet = optimoptions('fmincon', ...
     'Algorithm',              'sqp', ...
     'Display',                'off', ...
-    'MaxFunctionEvaluations', 10, ...
-    'MaxIterations',          10, ...   
-    'OptimalityTolerance',    1e-4, ...
+    'MaxFunctionEvaluations', 500, ...
+    'MaxIterations',          50, ...   
+    'OptimalityTolerance',    1e-3, ...
     'StepTolerance',          1e-5);
 
 
@@ -46,7 +46,7 @@ obj_DOC = @(x) mdo_wrapper(x, 'DOC', N_FLIGHTS);
     [], [], [], [], lb1, ub1, [], opts_verbose);
 
 % Evaluate both objectives at the Run 1 optimum for later normalisation
-[DOC_at1, ATR_at1] = eval_both(x_opt1, N_FLIGHTS);
+[DOC_at1, ATR_at1, MTOM_DOC_at1, MTOM_ATR_at1] = eval_both(x_opt1, N_FLIGHTS);
 
 fprintf('\n── Run 1 Results ──────────────────────────────────────────\n');
 fprintf('  Fleet size      : %d aircraft\n',  round(x_opt1(1)));
@@ -57,6 +57,8 @@ fprintf('  SAF ratio       : %.0f%%\n',        x_opt1(5)*100);
 fprintf('  Design range    : %.0f km\n',       x_opt1(6));
 fprintf('  → DOC           : $%.3f M/season\n', DOC_opt1/1e6);
 fprintf('  → ATR100        : %.4e K\n',        ATR_at1);
+fprintf('  MTOM at DOC opt : %.1f t\n',         MTOM_DOC_at1/1e3);
+fprintf('  MTOM at ATR opt : %.1f t\n',         MTOM_ATR_at1/1e3);
 fprintf('  Exit flag       : %d\n',            flag1);
 
 
@@ -71,7 +73,7 @@ obj_ATR = @(x) mdo_wrapper(x, 'ATR', N_FLIGHTS);
 [x_opt2, ATR_opt2, flag2] = fmincon(obj_ATR, x0, ...
     [], [], [], [], lb, ub, [], opts_verbose);
 
-[DOC_at2, ATR_at2] = eval_both(x_opt2, N_FLIGHTS);
+[DOC_at2, ATR_at2, MTOM_DOC_at2, MTOM_ATR_at2] = eval_both(x_opt2, N_FLIGHTS);
 
 fprintf('\n── Run 2 Results ──────────────────────────────────────────\n');
 fprintf('  Fleet size      : %d aircraft\n',  round(x_opt2(1)));
@@ -82,6 +84,8 @@ fprintf('  SAF ratio       : %.0f%%\n',        x_opt2(5)*100);
 fprintf('  Design range    : %.0f km\n',       x_opt2(6));
 fprintf('  → ATR100        : %.4e K\n',        ATR_opt2);
 fprintf('  → DOC           : $%.3f M/season\n', DOC_at2/1e6);
+fprintf('  MTOM at DOC opt : %.1f t\n',         MTOM_DOC_at2/1e3);
+fprintf('  MTOM at ATR opt : %.1f t\n',         MTOM_ATR_at2/1e3);
 fprintf('  Exit flag       : %d\n',            flag2);
 
 
@@ -126,7 +130,7 @@ for i = 1:n_ws
     try
         [x_i, ~] = fmincon(obj_ws, x0_i, [], [], [], [], ...
                             lb, ub, [], opts_quiet);
-        [pareto_DOC_ws(i), pareto_ATR_ws(i)] = eval_both(x_i, N_FLIGHTS);
+        [pareto_DOC_ws(i), pareto_ATR_ws(i), ~, ~] = eval_both(x_i, N_FLIGHTS);
         pareto_x_ws(i,:) = x_i;
         fprintf('DOC=$%.2fM  ATR=%.3e K\n', ...
                 pareto_DOC_ws(i)/1e6, pareto_ATR_ws(i));
@@ -175,7 +179,7 @@ for i = 1:n_ws
         [x_i, ATR_i] = fmincon(@(x) mdo_wrapper(x,'ATR',N_FLIGHTS), ...
                                 x0_i, [], [], [], [], lb, ub, ...
                                 con_eps, opts_quiet);
-        [pareto_DOC_ec(i), pareto_ATR_ec(i)] = eval_both(x_i, N_FLIGHTS);
+        [pareto_DOC_ec(i), pareto_ATR_ec(i), ~, ~] = eval_both(x_i, N_FLIGHTS);
         pareto_x_ec(i,:) = x_i;
         fprintf('DOC=$%.2fM  ATR=%.3e K\n', ...
                 pareto_DOC_ec(i)/1e6, pareto_ATR_ec(i));
@@ -252,7 +256,7 @@ key_labels = {'Min DOC', 'Knee (w=0.5)', 'Min ATR'};
 n_key      = 3;
 
 DOC_items  = nan(n_key, 9);   % 9 DOC components
-ATR_items  = nan(n_key, 6);   % 6 ATR species
+ATR_items  = nan(n_key, 4);   % 4 ATR species
 
 for k = 1:n_key
     xk = key_points{k};
@@ -262,7 +266,6 @@ for k = 1:n_key
                       doc_bd.maintenance, doc_bd.depreciation, ...
                       doc_bd.interest, doc_bd.insurance];
     ATR_items(k,:) = [atr_bd.ATR_CO2, atr_bd.ATR_H2O, ...
-                      atr_bd.ATR_SO4, atr_bd.ATR_soot, ...
                       atr_bd.ATR_NOx, atr_bd.ATR_AIC];
 end
 
@@ -322,7 +325,7 @@ fprintf('╚══════════════════════�
 
 %%  LOCAL FUNCTIONS
 
-function J = mdo_wrapper(x, objective, n_flights)
+function [J, MTOM] = mdo_wrapper(x, objective, n_flights)
 % MDO_WRAPPER  Build ADP, run sizing, return requested objective.
 
 PENALTY = 1e12;   % returned on any failure — huge so optimiser avoids it
@@ -394,8 +397,9 @@ switch upper(objective)
 
     case 'ATR'
         try
-            J = BoxWing.script.ClimateImpact( ...
-                    ADP, sizing_out.BlockFuel, N_fleet, n_flights, SAF_ratio);
+            % J = BoxWing.script.ClimateImpact(ADP, sizing_out.BlockFuel, N_fleet, n_flights, SAF_ratio);
+            [ATR, atr_bd] = BoxWing.cast.eng.Engine_code(ADP.MTOM, ADP.OEM, ADP.WingArea, ADP.AR_target, ADP.TLAR.Range, ADP.TLAR.M_c);
+                J = ATR;
         catch
             J = PENALTY;
         end
@@ -408,14 +412,16 @@ end
 if ~isfinite(J)
     J = PENALTY;
 end
+
+MTOM = ADP.MTOM;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [DOC, ATR] = eval_both(x, n_flights)
+function [DOC, ATR, MTOM_DOC, MTOM_ATR] = eval_both(x, n_flights)
 % EVAL_BOTH  Evaluate both objectives at a design point.
-    DOC = mdo_wrapper(x, 'DOC', n_flights);
-    ATR = mdo_wrapper(x, 'ATR', n_flights);
+    [DOC, MTOM_DOC] = mdo_wrapper(x, 'DOC', n_flights);
+    [ATR, MTOM_ATR] = mdo_wrapper(x, 'ATR', n_flights);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -461,6 +467,7 @@ T_max_kN = ADP.Engine.T_Static / 1000;
     ADP.MTOM/1e3, ADP.OEM, sizing_out.BlockFuel, ...
     N_fleet, SAF_ratio, M_c, T_max_kN);
 
-[ATR, atr_bd] = BoxWing.script.ClimateImpact_trial( ...
-    ADP, sizing_out.BlockFuel, N_fleet, n_flights, SAF_ratio);
+s_ref = 422.5;
+[ATR, atr_bd] = BoxWing.cast.eng.Engine_code(ADP.MTOM, ADP.OEM, s_ref, ADP.AR_target, ADP.TLAR.Range, ADP.TLAR.M_c);
+
 end

@@ -90,16 +90,16 @@ fprintf('╚══════════════════════�
 %% ── DOC Calculation ─────────────────────────────────────────────────────
 fleet_size = 6;
 SAF_ratio  = 1.0;
-T_max_kN   = ADP.Engine.T_Static / 1000;
+T_max_K   = 1832; % ADP.Engine.T_Static / 1000;
 
-[DOC_total, DOC_breakdown, no_landings] = BoxWing.script.DOC( ...
+[DOC_total, DOC_breakdown, no_landings, total_init, labour, V_max] = BoxWing.script.DOC( ...
     ADP.MTOM / 1e3, ...
     ADP.OEM, ...
     sizing_out.BlockFuel, ...
     fleet_size, ...
     SAF_ratio, ...
     ADP.TLAR.M_c, ...
-    T_max_kN);
+    T_max_K);
 
 fprintf('╔════════════════════════════════════════════════════════════╗\n');
 fprintf('║                    DOC RESULTS                             ║\n');
@@ -118,8 +118,8 @@ fprintf('║  TOTAL DOC        : %7.2f M$/season                    ║\n', DOC_
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
 %% ── Climate Impact ──────────────────────────────────────────────────────
-[ATR100, climate_bd] = BoxWing.script.ClimateImpact_trial( ...
-    ADP, sizing_out.BlockFuel, fleet_size, no_landings, SAF_ratio);
+s_ref = 422.5;
+[ATR100, climate_bd] = BoxWing.cast.eng.Engine_code(ADP.MTOM, ADP.OEM, s_ref, ADP.AR_target, ADP.TLAR.Range, ADP.TLAR.M_c);
 
 fprintf('║  ATR100 (total)   : %.4e K                          ║\n', ATR100);
 fprintf('║    CO2            : %.4e K                          ║\n', climate_bd.ATR_CO2);
